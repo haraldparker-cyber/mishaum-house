@@ -1,0 +1,16 @@
+/* Page-level reset. The app has its own styles; this only governs the
+   outer html/body/#root wrappers that live outside the React component,
+   which is where a stray horizontal scrollbar can come from. */
+html, body {
+  margin: 0;
+  padding: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+#root {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+* {
+  box-sizing: border-box;
+}
