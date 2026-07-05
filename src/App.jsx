@@ -787,7 +787,7 @@ export default function App() {
             <div>
               <h1>Mishaum Point</h1>
               <div className="sub light">
-                {page === "calendar" ? "House calendar · the shared log" : page === "maintenance" ? "House ledger · maintenance & expenses" : page === "info" ? "House info · the shared reference" : "Message board · anonymous notes for the house"}
+                {page === "calendar" ? "House calendar · the shared log" : page === "maintenance" ? "House finances · ledger & expenses" : page === "info" ? "House info · the shared reference" : "Message board · anonymous notes for the house"}
               </div>
             </div>
           </div>
@@ -796,7 +796,7 @@ export default function App() {
         <div className="tabrow">
           <div className="tabs">
             <button className={"tab" + (page === "calendar" ? " on" : "")} onClick={() => setPage("calendar")}>Calendar</button>
-            <button className={"tab" + (page === "maintenance" ? " on" : "")} onClick={() => setPage("maintenance")}>Maintenance</button>
+            <button className={"tab" + (page === "maintenance" ? " on" : "")} onClick={() => setPage("maintenance")}>Finance</button>
             <button className={"tab" + (page === "board" ? " on" : "")} onClick={() => setPage("board")}>Board</button>
             <button className={"tab" + (page === "info" ? " on" : "")} onClick={() => setPage("info")}>House Info</button>
           </div>
@@ -826,9 +826,7 @@ export default function App() {
           </div>
         )}
 
-        <div className="layout">
-          {/* calendar */}
-          <div className="cal">
+        <div className="cal">
             <div className="calhead">
               <div className="mrow">
                 <span className="m">{MONTHS[view.getMonth()]}</span>
@@ -879,32 +877,6 @@ export default function App() {
               })}
             </div>
           </div>
-
-          {/* ledger */}
-          <div className="ledger">
-            <h2>House ledger</h2>
-            <div className="yr">season of {year}</div>
-            {Object.values(FAMILIES).map((f) => {
-              const st = stats[f.key];
-              const pct = Math.min(100, allowance ? (st.ex / allowance) * 100 : 0);
-              const over = st.ex > allowance;
-              return (
-                <div className="fam" key={f.key}>
-                  <div className="name"><span className="chip" style={{ background: f.color }} />{f.label}<span className="tag">{f.tag}</span></div>
-                  <div className="line"><span>Exclusive nights</span><span className={"v" + (over ? " over" : "")}>{st.ex} / {allowance}</span></div>
-                  <div className="meter"><i style={{ width: pct + "%", background: over ? "#ec8f7f" : f.color }} /></div>
-                  <div className="sub2"><span>July <b>{st.exJul}</b>/14</span><span>Aug <b>{st.exAug}</b>/14</span><span>shared <b>{st.shared}</b></span></div>
-                  <div className="line" style={{ marginTop: 8 }}><span>Into the pot</span><span className="v">${st.pot.toLocaleString()}</span></div>
-                </div>
-              );
-            })}
-            <div className="pot">
-              <div className="cap">Shared pot · {year}</div>
-              <div className="big">${potTotal.toLocaleString()}</div>
-              <div className="sub2" style={{ marginTop: 4 }}><span>{bedTotal} bed-nights × ${rate}</span></div>
-            </div>
-          </div>
-        </div>
 
         {/* stays list */}
         <div className="lower">
@@ -965,6 +937,31 @@ export default function App() {
             years={maintYears}
             maintYear={maintYear}
             setMaintYear={setMaintYear}
+            ledger={
+              <div className="ledger" style={{ marginTop: 2, marginBottom: 18 }}>
+                <h2>House ledger</h2>
+                <div className="yr">season of {year}</div>
+                {Object.values(FAMILIES).map((f) => {
+                  const st = stats[f.key];
+                  const pct = Math.min(100, allowance ? (st.ex / allowance) * 100 : 0);
+                  const over = st.ex > allowance;
+                  return (
+                    <div className="fam" key={f.key}>
+                      <div className="name"><span className="chip" style={{ background: f.color }} />{f.label}<span className="tag">{f.tag}</span></div>
+                      <div className="line"><span>Exclusive nights</span><span className={"v" + (over ? " over" : "")}>{st.ex} / {allowance}</span></div>
+                      <div className="meter"><i style={{ width: pct + "%", background: over ? "#ec8f7f" : f.color }} /></div>
+                      <div className="sub2"><span>July <b>{st.exJul}</b>/14</span><span>Aug <b>{st.exAug}</b>/14</span><span>shared <b>{st.shared}</b></span></div>
+                      <div className="line" style={{ marginTop: 8 }}><span>Into the pot</span><span className="v">${st.pot.toLocaleString()}</span></div>
+                    </div>
+                  );
+                })}
+                <div className="pot">
+                  <div className="cap">Shared pot · {year}</div>
+                  <div className="big">${potTotal.toLocaleString()}</div>
+                  <div className="sub2" style={{ marginTop: 4 }}><span>{bedTotal} bed-nights × ${rate}</span></div>
+                </div>
+              </div>
+            }
             onAdd={() => setExpModal({ entry: null })}
             onEdit={(e) => setExpModal({ entry: e })}
             onDelete={(id) => persistMaint(maint.filter((x) => x.id !== id))}
@@ -1355,7 +1352,7 @@ function StayModal({ booking, preset, others = [], onClose, onSave, onDelete }) 
 
 const fmtUSD = (n) => "$" + (Math.round((+n || 0) * 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
-function MaintenanceView({ entries, summary, years, maintYear, setMaintYear, onAdd, onEdit, onDelete }) {
+function MaintenanceView({ entries, summary, years, maintYear, setMaintYear, ledger, onAdd, onEdit, onDelete }) {
   const [copied, setCopied] = useState(false);
   const copySummary = () => {
     const yr = maintYear === "all" ? "All time" : String(maintYear);
@@ -1380,12 +1377,14 @@ function MaintenanceView({ entries, summary, years, maintYear, setMaintYear, onA
   return (
     <div className="maint">
       <div className="mainthead">
-        <h2>Maintenance &amp; expenses</h2>
+        <h2>Finance</h2>
         <select className="mfilter" value={maintYear} onChange={(e) => setMaintYear(e.target.value === "all" ? "all" : +e.target.value)}>
           <option value="all">All time</option>
           {years.map((y) => <option key={y} value={y}>{y}</option>)}
         </select>
       </div>
+
+      {ledger}
 
       <div className="msummary">
         <div className="mcard">
