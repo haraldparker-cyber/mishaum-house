@@ -863,8 +863,8 @@ export default function App() {
                           const pend = isPending(b) ? " pending" : "";
                           const lab = isPending(b) ? `${f.tag} hold` : f.tag;
                           return b.type === "exclusive"
-                            ? <div className={"bar" + pend} key={b.id} title={tip} style={{ background: f.color }}>{lab}</div>
-                            : <div className={"bar shared" + pend} key={b.id} title={tip} style={{ color: f.color }}>{lab}</div>;
+                            ? <div className={"bar" + pend} key={b.id} title={tip} style={{ background: f.color, cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); setModal({ booking: b }); }}>{lab}</div>
+                            : <div className={"bar shared" + pend} key={b.id} title={tip} style={{ color: f.color, cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); setModal({ booking: b }); }}>{lab}</div>;
                         })}
                         {c.bookings.length > 2 && <div className="dnum" style={{ fontSize: 10 }}>+{c.bookings.length - 2}</div>}
                         {c.bookings.length > 0 && (
