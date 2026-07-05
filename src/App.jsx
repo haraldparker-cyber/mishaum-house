@@ -449,18 +449,6 @@ const CSS = `
 .mp .editstay{display:inline-flex;align-items:center;gap:4px;flex:none;border:1px solid var(--line);background:var(--card);color:var(--muted);border-radius:7px;padding:4px 9px;font-size:12px;font-family:var(--sans);cursor:pointer}
 .mp .editstay>*:not(:first-child){margin-left:4px}
 .mp .editstay:hover{color:var(--ink);border-color:#c9cdc7;background:var(--paper)}
-.mp .assignwrap{display:flex;flex-direction:column;gap:8px}
-.mp .roomdrops{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.mp .droproom{border:1px solid var(--line);border-radius:9px;padding:8px 9px;background:var(--card);min-height:54px}
-.mp .droproom.unassigned{background:var(--paper)}
-.mp .droproom.over{border-color:var(--ink);background:#eef3ef;box-shadow:0 0 0 2px rgba(28,90,99,.18)}
-.mp .drophead{font-size:11px;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
-.mp .dropchips{display:flex;flex-wrap:wrap;gap:6px}
-.mp .dropempty{font-size:12px;color:#aab2ad;font-style:italic}
-.mp .pchip{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:6px 12px;font-size:13px;font-family:var(--sans);cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
-.mp .pchip:active{cursor:grabbing}
-.mp .pchip.dragging{opacity:.35}
-.mp .dragghost{position:fixed;z-index:99999;transform:translate(-50%,-50%);pointer-events:none;border:1px solid var(--ink);background:#fff;color:var(--ink);border-radius:999px;padding:6px 12px;font-size:13px;font-family:var(--sans);box-shadow:0 8px 20px rgba(20,30,28,.3)}
 .mp .err{color:var(--flag);font-size:12.5px;margin:2px 0 10px}
 .mp .roomgrid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
 .mp .unit{margin-bottom:11px}
@@ -503,6 +491,13 @@ const CSS = `
 .mp .dayroom .drname{flex:1}
 .mp .dayroom .drstat{font-size:11.5px;color:var(--muted);font-family:var(--mono)}
 .mp .dayroom .drstat.free{color:#3f7d5f}
+.mp .whocard{padding:2px 0 11px;border-bottom:1px solid var(--line)}
+.mp .whocard:last-child{border-bottom:none;padding-bottom:2px}
+.mp .whorooms{font-size:13.5px;margin-top:3px;font-weight:600;color:var(--ink)}
+.mp .whoppl{font-size:12.5px;margin-top:1px;color:#55605b}
+.mp .freewrap{display:flex;flex-wrap:wrap;gap:6px}
+.mp .freechip{border:1px solid #bfe0cb;background:#eef6f0;color:#2f5647;border-radius:999px;padding:5px 11px;font-size:12.5px;font-family:var(--sans)}
+.mp .freechip .hold{color:#3f6d74;font-weight:600}
 
 /* ---------- mobile layout ---------- */
 @media(max-width:560px){
@@ -1120,20 +1115,27 @@ function DayModal({ iso, bookings, onClose, onAdd, onEdit }) {
     ...(b.members || []),
     ...(b.guests ? [`${b.guests} guest${b.guests > 1 ? "s" : ""}`] : []),
   ];
+  // A room is bookable unless a confirmed stay holds it (soft holds don't block).
+  const freeRooms = ROOMS.filter((r) => !confirmedBy[r.id]);
 
   return (
     <div className="scrim" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h3>{label}<button className="close" onClick={onClose}><X size={20} /></button></h3>
-        {covering.length > 0 && (
-          <div className="unit" style={{ marginBottom: 12 }}>
-            <div className="unithead"><span className="uname">Who's staying</span></div>
-            <div className="daylist" style={{ padding: "6px 2px" }}>
+
+        {covering.length === 0 ? (
+          <div className="exnote" style={{ marginBottom: 12 }}>
+            Nobody&apos;s here this night — the whole house is free.
+          </div>
+        ) : (
+          <div className="unit" style={{ marginBottom: 14 }}>
+            <div className="unithead"><span className="uname">Who&apos;s here</span></div>
+            <div className="daylist" style={{ padding: "4px 2px 0" }}>
               {covering.map((b) => {
                 const f = FAMILIES[b.family];
                 const names = whoNames(b);
                 return (
-                  <div key={b.id} style={{ marginBottom: 10 }}>
+                  <div key={b.id} className="whocard">
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                       <div style={{ fontWeight: 700 }}>
                         <span style={{ display: "inline-block", width: 9, height: 9, borderRadius: 3, background: f.color, marginRight: 6, verticalAlign: "middle" }} />
@@ -1141,57 +1143,36 @@ function DayModal({ iso, bookings, onClose, onAdd, onEdit }) {
                       </div>
                       <button className="editstay" onClick={() => onEdit(b)}><Pencil size={13} /> Edit</button>
                     </div>
-                    <div style={{ fontSize: 11, color: "#7f938e", marginTop: 1 }}>{prettyRange(b.start, b.end)} · {nights(b.start, b.end)} nights</div>
-                    {b.assignments && Object.keys(b.assignments).length ? (
-                      <div style={{ fontSize: 13, marginTop: 3 }}>
-                        {(b.type === "exclusive" ? ALL_ROOM_IDS : (b.rooms || [])).map((rid) => {
-                          const ppl = b.assignments[rid] || [];
-                          if (!ppl.length) return null;
-                          return <div key={rid} style={{ marginTop: 1 }}><b>{roomShort(rid)}:</b> {ppl.join(", ")}</div>;
-                        })}
-                        {(() => {
-                          const assigned = new Set(Object.values(b.assignments).flat());
-                          const rest = (b.members || []).filter((n) => !assigned.has(n));
-                          const extra = [...rest, ...(b.guests ? [`${b.guests} guest${b.guests > 1 ? "s" : ""}`] : [])];
-                          return extra.length ? <div style={{ marginTop: 1, color: "#7f938e" }}><b>Also:</b> {extra.join(", ")}</div> : null;
-                        })()}
-                      </div>
-                    ) : (
-                      <div style={{ fontSize: 13, marginTop: 2 }}>{b.type === "exclusive" ? "Whole house" : describeRooms(b.rooms)} — {names.length ? names.join(", ") : "who not specified"}</div>
-                    )}
+                    <div className="whorooms">{b.type === "exclusive" ? "Whole house" : describeRooms(b.rooms)}</div>
+                    <div className="whoppl">{names.length ? names.join(", ") : "who not specified"}</div>
+                    <div style={{ fontSize: 11, color: "#7f938e", marginTop: 2 }}>{prettyRange(b.start, b.end)} · {nights(b.start, b.end)} nights</div>
                   </div>
                 );
               })}
             </div>
           </div>
         )}
-        {exclusiveBy && (
-          <div className="exnote bad" style={{ marginBottom: 12 }}>
-            Whole house booked by {FAMILIES[exclusiveBy].label} — no rooms free this night.
-          </div>
-        )}
-        <div className="unithead" style={{ marginTop: 2, marginBottom: 6 }}><span className="uname">Room availability</span></div>
-        {UNITS.map((unit) => (
-          <div className="unit" key={unit.id}>
-            <div className="unithead"><span className="uname">{unit.name}</span></div>
-            <div className="daylist">
-              {ROOMS.filter((r) => unit.roomIds.includes(r.id)).map((r) => {
-                const fam = confirmedBy[r.id];
-                const hold = !fam ? heldBy[r.id] : null;
-                const dot = fam ? FAMILIES[fam].color : hold ? "#3f6d74" : "#7fae8f";
-                const stat = fam ? `booked — ${FAMILIES[fam].tag}` : hold ? `on hold — ${FAMILIES[hold].tag}` : "free";
-                return (
-                  <div className="dayroom" key={r.id}>
-                    <span className="ddot" style={{ background: dot }} />
-                    <span className="drname">{r.name}</span>
-                    <span className={"drstat" + (fam || hold ? "" : " free")}>{stat}</span>
-                  </div>
-                );
-              })}
+
+        {covering.length > 0 && (
+          exclusiveBy ? (
+            <div className="exnote bad">Whole house booked by {FAMILIES[exclusiveBy].label} — nothing else free this night.</div>
+          ) : freeRooms.length === 0 ? (
+            <div className="exnote bad">Every room is taken this night.</div>
+          ) : (
+            <div>
+              <div className="unithead" style={{ marginBottom: 6 }}><span className="uname">Still free</span></div>
+              <div className="freewrap">
+                {freeRooms.map((r) => (
+                  <span key={r.id} className="freechip">
+                    {r.name}{heldBy[r.id] ? <span className="hold"> · on hold</span> : null}
+                  </span>
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
-        <div className="actions" style={{ marginTop: 10 }}>
+          )
+        )}
+
+        <div className="actions" style={{ marginTop: 14 }}>
           <button className="save" onClick={() => onAdd(iso)}>Add a stay for this day</button>
         </div>
       </div>
@@ -1211,62 +1192,11 @@ function StayModal({ booking, preset, others = [], onClose, onSave, onDelete }) 
   const [guests, setGuests] = useState(booking?.guests ?? 0);
   const [notes, setNotes] = useState(booking?.notes || "");
   const [err, setErr] = useState("");
-  const [assignments, setAssignments] = useState(() => booking?.assignments || {});
-  const [drag, setDrag] = useState(null);
-
   const roster = FAMILY_MEMBERS[family] || [];
   const toggleMember = (name) =>
     setMembers((cur) => (cur.includes(name) ? cur.filter((m) => m !== name) : [...cur, name]));
   // Switching household clears member picks, since the names differ per family.
   const pickFamily = (k) => { setFamily(k); if (family !== k) setMembers([]); };
-
-  // ---- who sleeps where (drag to assign) ----
-  const roomOfMember = (name) => { for (const rid of Object.keys(assignments)) if ((assignments[rid] || []).includes(name)) return rid; return null; };
-  const unassignedMembers = members.filter((m) => !roomOfMember(m));
-  const placeMember = (name, toRoom) => {
-    setAssignments((prev) => {
-      const next = {};
-      for (const rid of Object.keys(prev)) next[rid] = (prev[rid] || []).filter((n) => n !== name);
-      if (toRoom && toRoom !== "__unassigned") next[toRoom] = [...(next[toRoom] || []), name];
-      for (const rid of Object.keys(next)) if (!next[rid].length) delete next[rid];
-      return next;
-    });
-  };
-  const startDrag = (e, name) => {
-    if (e.pointerType === "mouse" && e.button !== 0) return;
-    e.preventDefault();
-    setDrag({ name, x: e.clientX, y: e.clientY, over: null });
-    const move = (ev) => {
-      const el = document.elementFromPoint(ev.clientX, ev.clientY);
-      const zone = el && el.closest("[data-drop]");
-      const over = zone ? zone.getAttribute("data-drop") : null;
-      setDrag((d) => (d ? { ...d, x: ev.clientX, y: ev.clientY, over } : d));
-    };
-    const up = (ev) => {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", up);
-      const el = document.elementFromPoint(ev.clientX, ev.clientY);
-      const zone = el && el.closest("[data-drop]");
-      const target = zone ? zone.getAttribute("data-drop") : null;
-      if (target) placeMember(name, target);
-      setDrag(null);
-    };
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", up);
-  };
-  useEffect(() => {
-    setAssignments((prev) => {
-      const validRooms = new Set(type === "exclusive" ? ALL_ROOM_IDS : rooms);
-      const validMembers = new Set(members);
-      const next = {};
-      for (const rid of Object.keys(prev)) {
-        if (!validRooms.has(rid)) continue;
-        const kept = (prev[rid] || []).filter((n) => validMembers.has(n));
-        if (kept.length) next[rid] = kept;
-      }
-      return next;
-    });
-  }, [members, rooms, type]);
 
   const datesOk = start && end && nights(start, end) >= 1;
 
@@ -1315,7 +1245,7 @@ function StayModal({ booking, preset, others = [], onClose, onSave, onDelete }) 
     }
     const g = Math.max(0, +guests || 0);
     if (members.length === 0 && g === 0) return setErr("Add at least one person — pick a family member or add a guest.");
-    onSave({ id: booking?.id || uid(), family, type, status, start, end, rooms: type === "exclusive" ? [] : rooms, members, people: members.length, guests: g, notes: notes.trim(), assignments });
+    onSave({ id: booking?.id || uid(), family, type, status, start, end, rooms: type === "exclusive" ? [] : rooms, members, people: members.length, guests: g, notes: notes.trim() });
   };
 
   return (
@@ -1415,43 +1345,6 @@ function StayModal({ booking, preset, others = [], onClose, onSave, onDelete }) 
           </div>
         </div>
 
-        {members.length > 0 && (type === "exclusive" ? ALL_ROOM_IDS : rooms).length > 0 && (
-          <div className="field"><span>Who sleeps where · drag a name into a room</span>
-            <div className="assignwrap">
-              <div className={"droproom unassigned" + (drag && drag.over === "__unassigned" ? " over" : "")} data-drop="__unassigned">
-                <div className="drophead">Not assigned yet</div>
-                <div className="dropchips">
-                  {unassignedMembers.length === 0
-                    ? <span className="dropempty">everyone has a room</span>
-                    : unassignedMembers.map((name) => (
-                        <button type="button" key={name} className={"pchip" + (drag && drag.name === name ? " dragging" : "")} onPointerDown={(e) => startDrag(e, name)}>{name}</button>
-                      ))}
-                </div>
-              </div>
-              <div className="roomdrops">
-                {(type === "exclusive" ? ALL_ROOM_IDS : rooms).map((rid) => {
-                  const r = ROOMS.find((x) => x.id === rid);
-                  if (!r) return null;
-                  const here = assignments[rid] || [];
-                  return (
-                    <div key={rid} className={"droproom" + (drag && drag.over === rid ? " over" : "")} data-drop={rid}>
-                      <div className="drophead">{r.name}</div>
-                      <div className="dropchips">
-                        {here.length === 0
-                          ? <span className="dropempty">drop here</span>
-                          : here.map((name) => (
-                              <button type="button" key={name} className={"pchip" + (drag && drag.name === name ? " dragging" : "")} onPointerDown={(e) => startDrag(e, name)}>{name}</button>
-                            ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-            {(+guests || 0) > 0 && <div className="hint">Guests aren&apos;t assigned to a specific room here.</div>}
-          </div>
-        )}
-
         <div className="field"><span>Guests (outside the family)</span>
           <div className="stepper">
             <button type="button" onClick={() => setGuests((g) => Math.max(0, (+g || 0) - 1))} aria-label="Fewer guests">–</button>
@@ -1468,7 +1361,6 @@ function StayModal({ booking, preset, others = [], onClose, onSave, onDelete }) 
           <button className="save" onClick={submit}>{editing ? "Save changes" : "Add stay"}</button>
           {editing && <button className="del" onClick={() => onDelete(booking.id)}><Trash2 size={17} /></button>}
         </div>
-        {drag && <div className="dragghost" style={{ left: drag.x, top: drag.y }}>{drag.name}</div>}
       </div>
     </div>
   );
