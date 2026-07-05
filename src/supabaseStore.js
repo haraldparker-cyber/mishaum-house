@@ -17,12 +17,14 @@ const bookingToRow = (b) => ({
   people: b.people ?? (b.members ? b.members.length : 1),
   guests: b.guests ?? 0,
   notes: b.notes || "",
+  assignments: b.assignments || {},
 });
 const rowToBooking = (r) => ({
   id: r.id, family: r.family, type: r.type, status: r.status,
   start: r.start_date, end: r.end_date, rooms: r.rooms || [],
   members: r.members || [],
   people: r.people, guests: r.guests, notes: r.notes || "",
+  assignments: r.assignments || {},
 });
 
 const maintToRow = (m) => ({
