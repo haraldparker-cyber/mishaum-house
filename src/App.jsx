@@ -610,7 +610,6 @@ export default function App() {
   const [view, setView] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
   const [modal, setModal] = useState(null); // null | {booking, preset}
   const [dayView, setDayView] = useState(null); // null | iso string
-  const [stayView, setStayView] = useState(null); // null | booking (read-only summary)
   const [expModal, setExpModal] = useState(null); // null | {entry}
   const [infoModal, setInfoModal] = useState(null); // null | {item}
   const [maintYear, setMaintYear] = useState("all"); // "all" | number
@@ -864,8 +863,8 @@ export default function App() {
                           const pend = isPending(b) ? " pending" : "";
                           const lab = isPending(b) ? `${f.tag} hold` : f.tag;
                           return b.type === "exclusive"
-                            ? <div className={"bar" + pend} key={b.id} title={tip} style={{ background: f.color, cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); setStayView(b); }}>{lab}</div>
-                            : <div className={"bar shared" + pend} key={b.id} title={tip} style={{ color: f.color, cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); setStayView(b); }}>{lab}</div>;
+                            ? <div className={"bar" + pend} key={b.id} title={tip} style={{ background: f.color, cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); setDayView(c.iso); }}>{lab}</div>
+                            : <div className={"bar shared" + pend} key={b.id} title={tip} style={{ color: f.color, cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); setDayView(c.iso); }}>{lab}</div>;
                         })}
                         {c.bookings.length > 2 && <div className="dnum" style={{ fontSize: 10 }}>+{c.bookings.length - 2}</div>}
                         {c.bookings.length > 0 && (
@@ -1061,14 +1060,6 @@ export default function App() {
         />
       )}
 
-      {stayView && (
-        <StaySummaryModal
-          booking={stayView}
-          bookings={bookings}
-          onClose={() => setStayView(null)}
-        />
-      )}
-
       {expModal && (
         <ExpenseModal
           entry={expModal.entry}
@@ -1098,63 +1089,8 @@ export default function App() {
   );
 }
 
-function StaySummaryModal({ booking, bookings, onClose }) {
-  // Everyone whose stay overlaps the clicked stay's dates (including it), earliest first.
-  const group = (bookings || [booking])
-    .filter((b) => overlaps(b.start, b.end, booking.start, booking.end))
-    .sort((a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end));
-  const list = group.length ? group : [booking];
-  const multi = list.length > 1;
-  const spanStart = list.reduce((m, b) => (b.start < m ? b.start : m), list[0].start);
-  const spanEnd = list.reduce((m, b) => (b.end > m ? b.end : m), list[0].end);
-  const whoNames = (b) => [
-    ...(b.members || []),
-    ...(b.guests ? [`${b.guests} guest${b.guests > 1 ? "s" : ""}`] : []),
-  ];
-  return (
-    <div className="scrim" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h3>
-          {multi ? prettyRange(spanStart, spanEnd) : prettyRange(booking.start, booking.end)}
-          <button className="close" onClick={onClose}><X size={20} /></button>
-        </h3>
-        <div className="sub2" style={{ marginBottom: 12 }}>
-          {multi
-            ? `${list.length} stays overlapping these dates`
-            : `${nights(booking.start, booking.end)} nights · ${FAMILIES[booking.family].label}${isPending(booking) ? " · hold (not confirmed)" : ""}`}
-        </div>
-        {list.map((b) => {
-          const f = FAMILIES[b.family];
-          const names = whoNames(b);
-          return (
-            <div className="unit" key={b.id} style={{ marginBottom: 10 }}>
-              <div className="unithead">
-                <span className="uname">
-                  <span style={{ display: "inline-block", width: 9, height: 9, borderRadius: 3, background: f.color, marginRight: 6, verticalAlign: "middle" }} />
-                  {f.label}{isPending(b) ? " · hold" : ""}
-                </span>
-                <span style={{ fontSize: 11, color: "#7f938e", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>
-                  {prettyRange(b.start, b.end)} · {nights(b.start, b.end)} nights
-                </span>
-              </div>
-              <div className="daylist" style={{ padding: "6px 2px", gap: 3 }}>
-                <div><b>Where:</b> {b.type === "exclusive" ? "Whole house" : describeRooms(b.rooms)}</div>
-                <div><b>Who's staying:</b> {names.length ? names.join(", ") : "Not specified"}</div>
-                {b.notes ? <div><b>Notes:</b> {b.notes}</div> : null}
-              </div>
-            </div>
-          );
-        })}
-        <div className="actions" style={{ marginTop: 12 }}>
-          <span className="composerhint">To edit or delete a stay, find it in the Stays list below the calendar.</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function DayModal({ iso, bookings, onClose, onAdd }) {
-  const covering = bookings.filter((b) => eachNight(b.start, b.end).includes(iso));
+  const covering = bookings.filter((b) => eachNight(b.start, b.end).includes(iso)).sort((a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end));
   const confirmedBy = {}, heldBy = {};
   let exclusiveBy = null;
   for (const b of covering) {
@@ -1166,16 +1102,42 @@ function DayModal({ iso, bookings, onClose, onAdd }) {
   }
   const d = parseISO(iso);
   const label = d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+  const whoNames = (b) => [
+    ...(b.members || []),
+    ...(b.guests ? [`${b.guests} guest${b.guests > 1 ? "s" : ""}`] : []),
+  ];
 
   return (
     <div className="scrim" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h3>{label}<button className="close" onClick={onClose}><X size={20} /></button></h3>
+        {covering.length > 0 && (
+          <div className="unit" style={{ marginBottom: 12 }}>
+            <div className="unithead"><span className="uname">Who's staying</span></div>
+            <div className="daylist" style={{ padding: "6px 2px" }}>
+              {covering.map((b) => {
+                const f = FAMILIES[b.family];
+                const names = whoNames(b);
+                return (
+                  <div key={b.id} style={{ marginBottom: 10 }}>
+                    <div style={{ fontWeight: 700 }}>
+                      <span style={{ display: "inline-block", width: 9, height: 9, borderRadius: 3, background: f.color, marginRight: 6, verticalAlign: "middle" }} />
+                      {f.label}{isPending(b) ? " · hold" : ""}
+                    </div>
+                    <div style={{ fontSize: 11, color: "#7f938e", marginTop: 1 }}>{prettyRange(b.start, b.end)} · {nights(b.start, b.end)} nights</div>
+                    <div style={{ fontSize: 13, marginTop: 2 }}>{b.type === "exclusive" ? "Whole house" : describeRooms(b.rooms)} — {names.length ? names.join(", ") : "who not specified"}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
         {exclusiveBy && (
           <div className="exnote bad" style={{ marginBottom: 12 }}>
             Whole house booked by {FAMILIES[exclusiveBy].label} — no rooms free this night.
           </div>
         )}
+        <div className="unithead" style={{ marginTop: 2, marginBottom: 6 }}><span className="uname">Room availability</span></div>
         {UNITS.map((unit) => (
           <div className="unit" key={unit.id}>
             <div className="unithead"><span className="uname">{unit.name}</span></div>
