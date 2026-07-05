@@ -610,6 +610,7 @@ export default function App() {
   const [view, setView] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
   const [modal, setModal] = useState(null); // null | {booking, preset}
   const [dayView, setDayView] = useState(null); // null | iso string
+  const [stayView, setStayView] = useState(null); // null | booking (read-only summary)
   const [expModal, setExpModal] = useState(null); // null | {entry}
   const [infoModal, setInfoModal] = useState(null); // null | {item}
   const [maintYear, setMaintYear] = useState("all"); // "all" | number
@@ -863,8 +864,8 @@ export default function App() {
                           const pend = isPending(b) ? " pending" : "";
                           const lab = isPending(b) ? `${f.tag} hold` : f.tag;
                           return b.type === "exclusive"
-                            ? <div className={"bar" + pend} key={b.id} title={tip} style={{ background: f.color, cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); setModal({ booking: b }); }}>{lab}</div>
-                            : <div className={"bar shared" + pend} key={b.id} title={tip} style={{ color: f.color, cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); setModal({ booking: b }); }}>{lab}</div>;
+                            ? <div className={"bar" + pend} key={b.id} title={tip} style={{ background: f.color, cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); setStayView(b); }}>{lab}</div>
+                            : <div className={"bar shared" + pend} key={b.id} title={tip} style={{ color: f.color, cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); setStayView(b); }}>{lab}</div>;
                         })}
                         {c.bookings.length > 2 && <div className="dnum" style={{ fontSize: 10 }}>+{c.bookings.length - 2}</div>}
                         {c.bookings.length > 0 && (
@@ -1060,6 +1061,13 @@ export default function App() {
         />
       )}
 
+      {stayView && (
+        <StaySummaryModal
+          booking={stayView}
+          onClose={() => setStayView(null)}
+        />
+      )}
+
       {expModal && (
         <ExpenseModal
           entry={expModal.entry}
@@ -1085,6 +1093,46 @@ export default function App() {
           }}
         />
       )}
+    </div>
+  );
+}
+
+function StaySummaryModal({ booking, onClose }) {
+  const f = FAMILIES[booking.family];
+  const names = [
+    ...(booking.members || []),
+    ...(booking.guests ? [`${booking.guests} guest${booking.guests > 1 ? "s" : ""}`] : []),
+  ];
+  return (
+    <div className="scrim" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <h3>{prettyRange(booking.start, booking.end)}<button className="close" onClick={onClose}><X size={20} /></button></h3>
+        <div className="sub2" style={{ marginBottom: 12 }}>
+          {nights(booking.start, booking.end)} nights · {f.label}
+          {isPending(booking) ? " · hold (not confirmed)" : ""}
+        </div>
+        <div className="unit" style={{ marginBottom: 10 }}>
+          <div className="unithead"><span className="uname">Where</span></div>
+          <div className="daylist" style={{ padding: "6px 2px" }}>
+            {booking.type === "exclusive" ? "Whole house" : describeRooms(booking.rooms)}
+          </div>
+        </div>
+        <div className="unit" style={{ marginBottom: 10 }}>
+          <div className="unithead"><span className="uname">Who's staying</span></div>
+          <div className="daylist" style={{ padding: "6px 2px" }}>
+            {names.length ? names.join(", ") : "Not specified"}
+          </div>
+        </div>
+        {booking.notes && (
+          <div className="unit">
+            <div className="unithead"><span className="uname">Notes</span></div>
+            <div className="daylist" style={{ padding: "6px 2px" }}>{booking.notes}</div>
+          </div>
+        )}
+        <div className="actions" style={{ marginTop: 12 }}>
+          <span className="composerhint">To edit or delete this stay, find it in the Stays list below the calendar.</span>
+        </div>
+      </div>
     </div>
   );
 }
