@@ -1064,6 +1064,7 @@ export default function App() {
       {stayView && (
         <StaySummaryModal
           booking={stayView}
+          bookings={bookings}
           onClose={() => setStayView(null)}
         />
       )}
@@ -1097,40 +1098,55 @@ export default function App() {
   );
 }
 
-function StaySummaryModal({ booking, onClose }) {
-  const f = FAMILIES[booking.family];
-  const names = [
-    ...(booking.members || []),
-    ...(booking.guests ? [`${booking.guests} guest${booking.guests > 1 ? "s" : ""}`] : []),
+function StaySummaryModal({ booking, bookings, onClose }) {
+  // Everyone whose stay overlaps the clicked stay's dates (including it), earliest first.
+  const group = (bookings || [booking])
+    .filter((b) => overlaps(b.start, b.end, booking.start, booking.end))
+    .sort((a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end));
+  const list = group.length ? group : [booking];
+  const multi = list.length > 1;
+  const spanStart = list.reduce((m, b) => (b.start < m ? b.start : m), list[0].start);
+  const spanEnd = list.reduce((m, b) => (b.end > m ? b.end : m), list[0].end);
+  const whoNames = (b) => [
+    ...(b.members || []),
+    ...(b.guests ? [`${b.guests} guest${b.guests > 1 ? "s" : ""}`] : []),
   ];
   return (
     <div className="scrim" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h3>{prettyRange(booking.start, booking.end)}<button className="close" onClick={onClose}><X size={20} /></button></h3>
+        <h3>
+          {multi ? prettyRange(spanStart, spanEnd) : prettyRange(booking.start, booking.end)}
+          <button className="close" onClick={onClose}><X size={20} /></button>
+        </h3>
         <div className="sub2" style={{ marginBottom: 12 }}>
-          {nights(booking.start, booking.end)} nights · {f.label}
-          {isPending(booking) ? " · hold (not confirmed)" : ""}
+          {multi
+            ? `${list.length} stays overlapping these dates`
+            : `${nights(booking.start, booking.end)} nights · ${FAMILIES[booking.family].label}${isPending(booking) ? " · hold (not confirmed)" : ""}`}
         </div>
-        <div className="unit" style={{ marginBottom: 10 }}>
-          <div className="unithead"><span className="uname">Where</span></div>
-          <div className="daylist" style={{ padding: "6px 2px" }}>
-            {booking.type === "exclusive" ? "Whole house" : describeRooms(booking.rooms)}
-          </div>
-        </div>
-        <div className="unit" style={{ marginBottom: 10 }}>
-          <div className="unithead"><span className="uname">Who's staying</span></div>
-          <div className="daylist" style={{ padding: "6px 2px" }}>
-            {names.length ? names.join(", ") : "Not specified"}
-          </div>
-        </div>
-        {booking.notes && (
-          <div className="unit">
-            <div className="unithead"><span className="uname">Notes</span></div>
-            <div className="daylist" style={{ padding: "6px 2px" }}>{booking.notes}</div>
-          </div>
-        )}
+        {list.map((b) => {
+          const f = FAMILIES[b.family];
+          const names = whoNames(b);
+          return (
+            <div className="unit" key={b.id} style={{ marginBottom: 10 }}>
+              <div className="unithead">
+                <span className="uname">
+                  <span style={{ display: "inline-block", width: 9, height: 9, borderRadius: 3, background: f.color, marginRight: 6, verticalAlign: "middle" }} />
+                  {f.label}{isPending(b) ? " · hold" : ""}
+                </span>
+                <span style={{ fontSize: 11, color: "#7f938e", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>
+                  {prettyRange(b.start, b.end)} · {nights(b.start, b.end)} nights
+                </span>
+              </div>
+              <div className="daylist" style={{ padding: "6px 2px", gap: 3 }}>
+                <div><b>Where:</b> {b.type === "exclusive" ? "Whole house" : describeRooms(b.rooms)}</div>
+                <div><b>Who's staying:</b> {names.length ? names.join(", ") : "Not specified"}</div>
+                {b.notes ? <div><b>Notes:</b> {b.notes}</div> : null}
+              </div>
+            </div>
+          );
+        })}
         <div className="actions" style={{ marginTop: 12 }}>
-          <span className="composerhint">To edit or delete this stay, find it in the Stays list below the calendar.</span>
+          <span className="composerhint">To edit or delete a stay, find it in the Stays list below the calendar.</span>
         </div>
       </div>
     </div>
