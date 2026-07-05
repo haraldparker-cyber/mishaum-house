@@ -444,7 +444,7 @@ const CSS = `
 .mp .namestag{color:#55605b;font-style:italic}
 .mp input[type=date],.mp input[type=number],.mp input[type=text]{width:100%;max-width:100%;
   min-width:0;box-sizing:border-box;border:1px solid var(--line);
-  border-radius:8px;padding:9px 10px;font-family:var(--sans);font-size:14px;background:var(--card);color:var(--ink)}
+  border-radius:8px;min-height:38px;padding:9px 10px;font-family:var(--sans);font-size:14px;background:var(--card);color:var(--ink)}
 .mp input[type=date]{-webkit-appearance:none;appearance:none}
 .mp .err{color:var(--flag);font-size:12.5px;margin:2px 0 10px}
 .mp .roomgrid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
@@ -516,6 +516,7 @@ const CSS = `
 @media(max-width:600px){
   .mp input[type=date],.mp input[type=number],.mp input[type=text],
   .mp .fullsel,.mp select,.mp .composer textarea,.mp .infota{font-size:16px}
+  .mp input[type=date],.mp input[type=number],.mp input[type=text]{min-height:42px}
 }
 
 /* pending / soft-hold styling */
@@ -1262,8 +1263,8 @@ function StayModal({ booking, preset, others = [], onClose, onSave, onDelete }) 
         </div>
 
         <div className="two">
-          <div className="field"><span>Arrival</span><input type="date" value={start} onChange={(e) => { setStart(e.target.value); setErr(""); }} /></div>
-          <div className="field"><span>Departure</span><input type="date" value={end} onChange={(e) => { setEnd(e.target.value); setErr(""); }} /></div>
+          <div className="field"><span>Arrival</span><input type="date" value={start} onChange={(e) => { const v = e.target.value; setStart(v); setErr(""); if (v && (!end || end <= v)) setEnd(toISO(addDays(parseISO(v), 1))); }} /></div>
+          <div className="field"><span>Departure</span><input type="date" value={end} min={start ? toISO(addDays(parseISO(start), 1)) : undefined} onChange={(e) => { setEnd(e.target.value); setErr(""); }} /></div>
         </div>
 
         {type === "shared" ? (
