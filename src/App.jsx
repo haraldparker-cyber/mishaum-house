@@ -28,7 +28,7 @@ const FAMILIES = {
    actually there, rather than just a headcount. Edit these lists to add or
    rename people. */
 const FAMILY_MEMBERS = {
-  jfp: ["John Parker Sr.", "Maja Paumgarten", "Connie Parker", "Sophie Parker", "John Parker Jr."],
+  jfp: ["John Parker Sr.", "Maja Paumgarten", "Connie Parker", "Sophie Parker", "John Parker Jr.", "Mikaila Parker"],
   mrp: ["Polly Smith", "Damon Smith", "Katherine Smith"],
 };
 
@@ -446,6 +446,9 @@ const CSS = `
   min-width:0;box-sizing:border-box;border:1px solid var(--line);
   border-radius:8px;min-height:38px;padding:9px 10px;font-family:var(--sans);font-size:14px;background:var(--card);color:var(--ink)}
 .mp input[type=date]{-webkit-appearance:none;appearance:none}
+.mp .editstay{display:inline-flex;align-items:center;gap:4px;flex:none;border:1px solid var(--line);background:var(--card);color:var(--muted);border-radius:7px;padding:4px 9px;font-size:12px;font-family:var(--sans);cursor:pointer}
+.mp .editstay>*:not(:first-child){margin-left:4px}
+.mp .editstay:hover{color:var(--ink);border-color:#c9cdc7;background:var(--paper)}
 .mp .err{color:var(--flag);font-size:12.5px;margin:2px 0 10px}
 .mp .roomgrid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
 .mp .unit{margin-bottom:11px}
@@ -1054,6 +1057,7 @@ export default function App() {
           iso={dayView}
           bookings={bookings}
           onClose={() => setDayView(null)}
+          onEdit={(b) => { setDayView(null); setModal({ booking: b }); }}
           onAdd={(iso) => { setDayView(null); setModal({ booking: null, preset: { start: iso, end: toISO(addDays(parseISO(iso), 1)) } }); }}
         />
       )}
@@ -1087,7 +1091,7 @@ export default function App() {
   );
 }
 
-function DayModal({ iso, bookings, onClose, onAdd }) {
+function DayModal({ iso, bookings, onClose, onAdd, onEdit }) {
   const covering = bookings.filter((b) => eachNight(b.start, b.end).includes(iso)).sort((a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end));
   const confirmedBy = {}, heldBy = {};
   let exclusiveBy = null;
@@ -1118,9 +1122,12 @@ function DayModal({ iso, bookings, onClose, onAdd }) {
                 const names = whoNames(b);
                 return (
                   <div key={b.id} style={{ marginBottom: 10 }}>
-                    <div style={{ fontWeight: 700 }}>
-                      <span style={{ display: "inline-block", width: 9, height: 9, borderRadius: 3, background: f.color, marginRight: 6, verticalAlign: "middle" }} />
-                      {f.label}{isPending(b) ? " · hold" : ""}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                      <div style={{ fontWeight: 700 }}>
+                        <span style={{ display: "inline-block", width: 9, height: 9, borderRadius: 3, background: f.color, marginRight: 6, verticalAlign: "middle" }} />
+                        {f.label}{isPending(b) ? " · hold" : ""}
+                      </div>
+                      <button className="editstay" onClick={() => onEdit(b)}><Pencil size={13} /> Edit</button>
                     </div>
                     <div style={{ fontSize: 11, color: "#7f938e", marginTop: 1 }}>{prettyRange(b.start, b.end)} · {nights(b.start, b.end)} nights</div>
                     <div style={{ fontSize: 13, marginTop: 2 }}>{b.type === "exclusive" ? "Whole house" : describeRooms(b.rooms)} — {names.length ? names.join(", ") : "who not specified"}</div>
