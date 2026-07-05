@@ -193,7 +193,7 @@ const CSS = `
 
 /* hero header with the property painting */
 .mp .hero{position:relative;border-radius:14px;overflow:hidden;background-size:cover;
-  background-position:center 42%;min-height:190px;display:flex;align-items:flex-end;
+  background-position:center 50%;min-height:250px;display:flex;align-items:flex-end;
   padding:16px 18px;margin-bottom:6px;box-shadow:0 6px 20px rgba(30,42,43,.16)}
 .mp .herotitle{display:flex;align-items:center;gap:12px;position:relative}
 .mp .herotitle>*:not(:first-child){margin-left:12px}
@@ -204,7 +204,7 @@ const CSS = `
   backdrop-filter:blur(3px)}
 .mp .heroadd:hover{background:#fff}
 @media(max-width:560px){
-  .mp .hero{min-height:150px;padding:13px 14px}
+  .mp .hero{min-height:150px;padding:13px 14px;background-position:center 42%}
   .mp .hero h1{font-size:24px}
   .mp .burgee{width:36px}
   .mp .heroadd{padding:8px 12px;font-size:13px}
