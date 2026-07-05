@@ -375,8 +375,8 @@ const CSS = `
 .mp .stay .kind.sh{background:var(--paper);color:var(--muted);border:1px solid var(--line)}
 .mp .stay .warn{color:var(--flag);display:inline-flex}
 .mp .stay .sp{flex:1}
-.mp .stay .act{background:transparent;border:none;cursor:pointer;color:var(--muted);padding:5px;border-radius:6px}
-.mp .stay .act:hover{color:var(--ink);background:var(--paper)}
+.mp .stay .act,.mp .infocard .act{background:transparent;border:none;cursor:pointer;color:var(--muted);padding:5px;border-radius:6px}
+.mp .stay .act:hover,.mp .infocard .act:hover{color:var(--ink);background:var(--paper)}
 .mp .empty{background:var(--card);border:1px dashed var(--line);border-radius:10px;padding:26px;
   text-align:center;color:var(--muted);margin-top:9px}
 
@@ -1522,8 +1522,8 @@ function HouseInfoView({ items, onAdd, onEdit, onDelete }) {
               <div className="infovalue">{it.value}</div>
             </div>
             <span className="sp" />
-            <button className="act" onClick={() => onEdit(it)} aria-label="Edit"><Pencil size={15} /></button>
-            <button className="act" onClick={() => onDelete(it.id)} aria-label="Delete"><Trash2 size={15} /></button>
+            <button className="act" onClick={() => onEdit(it)} aria-label="Edit"><Pencil size={16} /></button>
+            <button className="act" onClick={() => onDelete(it.id)} aria-label="Delete"><Trash2 size={16} /></button>
           </div>
         ))}
       </div>
