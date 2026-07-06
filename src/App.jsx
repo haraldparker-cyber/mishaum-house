@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Plus, ChevronLeft, ChevronRight, X, Pencil, Trash2,
   Download, Upload, AlertTriangle, Star, Clock, Check, Users, Copy, Home,
@@ -95,6 +95,8 @@ const eachNight = (a, b) => {
   return out;
 };
 const overlaps = (a1, b1, a2, b2) => parseISO(a1) < parseISO(b2) && parseISO(a2) < parseISO(b1);
+// Does a booking cover the night of `iso`? ISO strings compare correctly as strings.
+const coversNight = (b, iso) => b.start <= iso && iso < b.end;
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const prettyRange = (a, b) => {
   const A = parseISO(a), B = parseISO(b);
@@ -566,7 +568,7 @@ const CSS = `
 `;
 
 const uid = () => Math.random().toString(36).slice(2, 9);
-const BUILD_TAG = "v27 · hold shows who on calendar · " + new Date().toISOString().slice(0, 10);
+const BUILD_TAG = "v28 · safer deletes & fresher data · " + new Date().toISOString().slice(0, 10);
 
 /* ---------- example/starter data ----------
    Shown only when the shared log is empty — clearly labeled "(example)".
@@ -625,25 +627,56 @@ export default function App() {
   const [infoModal, setInfoModal] = useState(null); // null | {item}
   const [maintYear, setMaintYear] = useState("all"); // "all" | number
   const [backupMsg, setBackupMsg] = useState("");
+  const [saveErr, setSaveErr] = useState(false);
+  // Guards for the focus-refresh below: never refetch over an in-flight save
+  // or while someone is mid-edit in a modal.
+  const pendingSaves = useRef(0);
+  const modalOpenRef = useRef(false);
+  modalOpenRef.current = !!(modal || expModal || infoModal || dayView);
+
+  const refresh = async () => {
+    const [bk, mt, bd, hi, st] = await Promise.all([store.load("bookings", SAMPLE_BOOKINGS), store.load("maintenance", SAMPLE_MAINT), store.load("board", SAMPLE_BOARD), store.load("houseinfo", SAMPLE_INFO), store.load("settings", {})]);
+    if (pendingSaves.current > 0) return; // a save started while we were fetching — don't clobber it
+    setBookings(Array.isArray(bk) ? bk : []);
+    setMaint(Array.isArray(mt) ? mt : []);
+    setBoard(Array.isArray(bd) ? bd : []);
+    setHouseInfo(Array.isArray(hi) ? hi : []);
+    if (st.rate != null) setRate(st.rate);
+    if (st.allowance != null) setAllowance(st.allowance);
+  };
 
   useEffect(() => {
-    (async () => {
-      const [bk, mt, bd, hi, st] = await Promise.all([store.load("bookings", SAMPLE_BOOKINGS), store.load("maintenance", SAMPLE_MAINT), store.load("board", SAMPLE_BOARD), store.load("houseinfo", SAMPLE_INFO), store.load("settings", {})]);
-      setBookings(Array.isArray(bk) ? bk : []);
-      setMaint(Array.isArray(mt) ? mt : []);
-      setBoard(Array.isArray(bd) ? bd : []);
-      setHouseInfo(Array.isArray(hi) ? hi : []);
-      if (st.rate != null) setRate(st.rate);
-      if (st.allowance != null) setAllowance(st.allowance);
-      setLoading(false);
-    })();
+    refresh().then(() => setLoading(false));
+    // Re-pull the shared log whenever the tab comes back into focus, so a
+    // phone left open for days doesn't act on (or overwrite) stale data.
+    const onVis = () => {
+      if (document.visibilityState !== "visible") return;
+      if (pendingSaves.current > 0 || modalOpenRef.current) return;
+      refresh();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
   }, []);
 
-  const persistBoard = (next) => { setBoard(next); store.save("board", next); };
-  const persistInfo = (next) => { setHouseInfo(next); store.save("houseinfo", next); };
-  const persist = (next) => { setBookings(next); store.save("bookings", next); };
-  const persistMaint = (next) => { setMaint(next); store.save("maintenance", next); };
-  const persistSettings = (r, a) => { setRate(r); setAllowance(a); store.save("settings", { rate: r, allowance: a }); };
+  // Optimistic local update + save, surfacing failures instead of losing them silently.
+  const persistTo = (key, next, setter) => {
+    setter(next);
+    pendingSaves.current += 1;
+    store.save(key, next)
+      .then((ok) => setSaveErr(!ok))
+      .finally(() => { pendingSaves.current -= 1; });
+  };
+  const persistBoard = (next) => persistTo("board", next, setBoard);
+  const persistInfo = (next) => persistTo("houseinfo", next, setHouseInfo);
+  const persist = (next) => persistTo("bookings", next, setBookings);
+  const persistMaint = (next) => persistTo("maintenance", next, setMaint);
+  const persistSettings = (r, a) => {
+    setRate(r); setAllowance(a);
+    pendingSaves.current += 1;
+    store.save("settings", { rate: r, allowance: a })
+      .then((ok) => setSaveErr(!ok))
+      .finally(() => { pendingSaves.current -= 1; });
+  };
 
   const year = view.getFullYear();
   const major = useMemo(() => majorWeekendSet(year), [year]);
@@ -765,7 +798,7 @@ export default function App() {
     for (let i = 0; i < 42; i++) {
       const d = addDays(start, i);
       const iso = toISO(d);
-      const dayBookings = bookings.filter((b) => eachNight(b.start, b.end).includes(iso));
+      const dayBookings = bookings.filter((b) => coversNight(b, iso));
       const taken = new Set();
       let exclusive = false;
       for (const b of dayBookings) {
@@ -813,6 +846,15 @@ export default function App() {
           </div>
           <div className="vtag">{BUILD_TAG}</div>
         </div>
+
+        {saveErr && (
+          <div className="banner">
+            <div className="row">
+              <AlertTriangle size={15} style={{ flex: "none", marginTop: 1 }} />
+              <span>Couldn&apos;t reach the shared log — your latest change may not have saved for everyone. Check your connection and try again.</span>
+            </div>
+          </div>
+        )}
 
         {page === "calendar" && (<>
         <div className="legend">
@@ -918,10 +960,19 @@ export default function App() {
                 <span className="sp" />
                 {isPending(b) && (
                   <button className="act confirmbtn" title="Confirm this hold" aria-label="Confirm hold"
-                    onClick={() => persist(bookings.map((x) => (x.id === b.id ? { ...x, status: "confirmed" } : x)))}><Check size={16} /></button>
+                    onClick={() => {
+                      const clashes = roomClashes({ ...b, status: "confirmed" }, bookings);
+                      if (clashes.length) {
+                        const names = [...new Set(clashes.map((c) => roomShort(c.room)))].join(", ");
+                        window.alert(`Can't confirm this hold — ${names} ${clashes.length === 1 ? "is" : "are"} now booked by a confirmed stay on these dates. Edit the hold to pick different rooms or dates.`);
+                        return;
+                      }
+                      persist(bookings.map((x) => (x.id === b.id ? { ...x, status: "confirmed" } : x)));
+                    }}><Check size={16} /></button>
                 )}
                 <button className="act" onClick={() => setModal({ booking: b })} aria-label="Edit"><Pencil size={16} /></button>
-                <button className="act" onClick={() => persist(bookings.filter((x) => x.id !== b.id))} aria-label="Delete"><Trash2 size={16} /></button>
+                <button className="act" aria-label="Delete"
+                  onClick={() => { if (window.confirm(`Delete ${f.label}'s stay ${prettyRange(b.start, b.end)}? This removes it from the shared log for everyone.`)) persist(bookings.filter((x) => x.id !== b.id)); }}><Trash2 size={16} /></button>
               </div>
             );
           })}
@@ -975,7 +1026,7 @@ export default function App() {
             }
             onAdd={() => setExpModal({ entry: null })}
             onEdit={(e) => setExpModal({ entry: e })}
-            onDelete={(id) => persistMaint(maint.filter((x) => x.id !== id))}
+            onDelete={(id) => { if (window.confirm("Delete this expense from the shared log for everyone?")) persistMaint(maint.filter((x) => x.id !== id)); }}
           />
         )}
 
@@ -983,7 +1034,7 @@ export default function App() {
           <BoardView
             posts={board}
             onPost={(text) => persistBoard([{ id: uid(), text, at: new Date().toISOString() }, ...board])}
-            onDelete={(id) => persistBoard(board.filter((x) => x.id !== id))}
+            onDelete={(id) => { if (window.confirm("Delete this note for everyone?")) persistBoard(board.filter((x) => x.id !== id)); }}
           />
         )}
 
@@ -992,7 +1043,7 @@ export default function App() {
             items={houseInfo}
             onAdd={() => setInfoModal({ item: null })}
             onEdit={(it) => setInfoModal({ item: it })}
-            onDelete={(id) => persistInfo(houseInfo.filter((x) => x.id !== id))}
+            onDelete={(id) => { if (window.confirm("Delete this house-info card for everyone?")) persistInfo(houseInfo.filter((x) => x.id !== id)); }}
           />
         )}
 
@@ -1050,7 +1101,7 @@ export default function App() {
           preset={modal.preset}
           others={bookings}
           onClose={() => setModal(null)}
-          onDelete={(id) => { persist(bookings.filter((x) => x.id !== id)); setModal(null); }}
+          onDelete={(id) => { if (!window.confirm("Delete this stay from the shared log for everyone?")) return; persist(bookings.filter((x) => x.id !== id)); setModal(null); }}
           onSave={(bk) => {
             const exists = bookings.some((x) => x.id === bk.id);
             persist(exists ? bookings.map((x) => (x.id === bk.id ? bk : x)) : [...bookings, bk]);
@@ -1073,7 +1124,7 @@ export default function App() {
         <ExpenseModal
           entry={expModal.entry}
           onClose={() => setExpModal(null)}
-          onDelete={(id) => { persistMaint(maint.filter((x) => x.id !== id)); setExpModal(null); }}
+          onDelete={(id) => { if (!window.confirm("Delete this expense from the shared log for everyone?")) return; persistMaint(maint.filter((x) => x.id !== id)); setExpModal(null); }}
           onSave={(en) => {
             const exists = maint.some((x) => x.id === en.id);
             persistMaint(exists ? maint.map((x) => (x.id === en.id ? en : x)) : [...maint, en]);
@@ -1086,7 +1137,7 @@ export default function App() {
         <InfoModal
           item={infoModal.item}
           onClose={() => setInfoModal(null)}
-          onDelete={(id) => { persistInfo(houseInfo.filter((x) => x.id !== id)); setInfoModal(null); }}
+          onDelete={(id) => { if (!window.confirm("Delete this house-info card for everyone?")) return; persistInfo(houseInfo.filter((x) => x.id !== id)); setInfoModal(null); }}
           onSave={(it) => {
             const exists = houseInfo.some((x) => x.id === it.id);
             persistInfo(exists ? houseInfo.map((x) => (x.id === it.id ? it : x)) : [...houseInfo, it]);
@@ -1099,7 +1150,7 @@ export default function App() {
 }
 
 function DayModal({ iso, bookings, onClose, onAdd, onEdit }) {
-  const covering = bookings.filter((b) => eachNight(b.start, b.end).includes(iso)).sort((a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end));
+  const covering = bookings.filter((b) => coversNight(b, iso)).sort((a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end));
   const confirmedBy = {}, heldBy = {};
   let exclusiveBy = null;
   for (const b of covering) {
@@ -1121,7 +1172,7 @@ function DayModal({ iso, bookings, onClose, onAdd, onEdit }) {
   return (
     <div className="scrim" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h3>{label}<button className="close" onClick={onClose}><X size={20} /></button></h3>
+        <h3>{label}<button className="close" onClick={onClose} aria-label="Close"><X size={20} /></button></h3>
 
         {covering.length === 0 ? (
           <div className="exnote" style={{ marginBottom: 12 }}>
@@ -1200,29 +1251,38 @@ function StayModal({ booking, preset, others = [], onClose, onSave, onDelete }) 
 
   const datesOk = start && end && nights(start, end) >= 1;
 
-  // Which rooms are already taken by other overlapping stays, and by whom.
+  // Which rooms other overlapping stays occupy, and by whom. Confirmed stays
+  // hard-block a room; pending holds are shown but stay selectable (holds
+  // don't block — same rule roomClashes applies on save).
   const takenMap = useMemo(() => {
     const m = {};
     if (!datesOk) return m;
     for (const o of others) {
       if (booking && o.id === booking.id) continue;
       if (!overlaps(start, end, o.start, o.end)) continue;
-      for (const rid of occupiedRooms(o)) if (!m[rid]) m[rid] = o.family;
+      const pending = isPending(o);
+      for (const rid of occupiedRooms(o)) {
+        if (!m[rid] || (m[rid].pending && !pending)) m[rid] = { family: o.family, pending };
+      }
     }
     return m;
   }, [start, end, others, booking, datesOk]);
 
-  const wholeHouseClash = datesOk && Object.keys(takenMap).length > 0;
+  const wholeHouseClash = datesOk && Object.values(takenMap).some((t) => !t.pending);
+  const holdOverlap = datesOk && Object.values(takenMap).some((t) => t.pending);
 
   const toggleRoom = (rid) => {
     setErr("");
     setRooms((rs) => (rs.includes(rid) ? rs.filter((x) => x !== rid) : [...rs, rid]));
   };
 
+  // A room is only unavailable when a *confirmed* stay holds it (and it isn't already selected).
+  const roomBlocked = (rid) => !!(takenMap[rid] && !takenMap[rid].pending && !rooms.includes(rid));
+
   // Select/clear all *available* rooms in a unit at once.
   const toggleUnit = (unit) => {
     setErr("");
-    const availIds = unit.roomIds.filter((rid) => !(takenMap[rid] && !rooms.includes(rid)));
+    const availIds = unit.roomIds.filter((rid) => !roomBlocked(rid));
     const allSelected = availIds.length > 0 && availIds.every((rid) => rooms.includes(rid));
     setRooms((rs) => {
       if (allSelected) return rs.filter((rid) => !unit.roomIds.includes(rid));
@@ -1251,7 +1311,7 @@ function StayModal({ booking, preset, others = [], onClose, onSave, onDelete }) 
   return (
     <div className="scrim" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h3>{editing ? "Edit stay" : "Add a stay"}<button className="close" onClick={onClose}><X size={20} /></button></h3>
+        <h3>{editing ? "Edit stay" : "Add a stay"}<button className="close" onClick={onClose} aria-label="Close"><X size={20} /></button></h3>
 
         <div className="field"><span>Family</span>
           <div className="seg">
@@ -1286,7 +1346,7 @@ function StayModal({ booking, preset, others = [], onClose, onSave, onDelete }) 
           <div className="field"><span>Rooms{datesOk ? "" : " · set dates to see what's free"}</span>
             {UNITS.map((unit) => {
               const unitRooms = ROOMS.filter((r) => unit.roomIds.includes(r.id));
-              const availIds = unit.roomIds.filter((rid) => !(takenMap[rid] && !rooms.includes(rid)));
+              const availIds = unit.roomIds.filter((rid) => !roomBlocked(rid));
               const allSelected = availIds.length > 0 && availIds.every((rid) => rooms.includes(rid));
               return (
                 <div className="unit" key={unit.id}>
@@ -1302,15 +1362,19 @@ function StayModal({ booking, preset, others = [], onClose, onSave, onDelete }) 
                   <div className="roomgrid">
                     {unitRooms.map((r) => {
                       const on = rooms.includes(r.id);
-                      const takenBy = takenMap[r.id];
-                      const disabled = !!takenBy && !on;
+                      const taken = takenMap[r.id];
+                      const disabled = !!taken && !taken.pending && !on;
+                      const sub = disabled ? `taken — ${FAMILIES[taken.family].tag}`
+                        : on ? "selected"
+                        : taken?.pending ? `on hold — ${FAMILIES[taken.family].tag}`
+                        : (datesOk ? "available" : "\u00A0");
                       return (
                         <button type="button" key={r.id}
                           className={"room" + (on ? " on" : "") + (disabled ? " taken" : "")}
                           style={on ? { background: FAMILIES[family].color } : {}}
                           onClick={() => { if (!disabled) toggleRoom(r.id); }}>
                           <span className="rname">{r.name}</span>
-                          <span className="rsub">{disabled ? `taken — ${FAMILIES[takenBy].tag}` : on ? "selected" : (datesOk ? "available" : "\u00A0")}</span>
+                          <span className="rsub">{sub}</span>
                         </button>
                       );
                     })}
@@ -1323,7 +1387,9 @@ function StayModal({ booking, preset, others = [], onClose, onSave, onDelete }) 
           <div className="field"><span>Rooms</span>
             <div className={"exnote" + (wholeHouseClash ? " bad" : "")}>
               {wholeHouseClash
-                ? "Whole house — but these dates overlap an existing stay, so it can't be booked exclusively."
+                ? "Whole house — but these dates overlap a confirmed stay, so it can't be booked exclusively."
+                : holdOverlap
+                ? "Whole house — these dates overlap a pending hold. Holds don't block, so this can still be booked; worth coordinating."
                 : "Whole house — every bedroom in both units (and the cabin) is included in an exclusive stay."}
             </div>
           </div>
@@ -1478,7 +1544,7 @@ function ExpenseModal({ entry, onClose, onSave, onDelete }) {
   return (
     <div className="scrim" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h3>{editing ? "Edit expense" : "Add expense"}<button className="close" onClick={onClose}><X size={20} /></button></h3>
+        <h3>{editing ? "Edit expense" : "Add expense"}<button className="close" onClick={onClose} aria-label="Close"><X size={20} /></button></h3>
 
         <div className="two">
           <div className="field"><span>Date</span><input type="date" value={date} onChange={(e) => { setDate(e.target.value); setErr(""); }} /></div>
@@ -1559,7 +1625,7 @@ function InfoModal({ item, onClose, onSave, onDelete }) {
   return (
     <div className="scrim" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h3>{editing ? "Edit info" : "Add house info"}<button className="close" onClick={onClose}><X size={20} /></button></h3>
+        <h3>{editing ? "Edit info" : "Add house info"}<button className="close" onClick={onClose} aria-label="Close"><X size={20} /></button></h3>
         <div className="field"><span>Label</span>
           <input type="text" value={label} placeholder="e.g. WiFi password" onChange={(e) => { setLabel(e.target.value); setErr(""); }} />
         </div>
