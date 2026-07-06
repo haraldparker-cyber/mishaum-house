@@ -60,7 +60,7 @@ async function syncTable(table, items, toRow) {
     const { error: delErr } = await supabase
       .from(table)
       .delete()
-      .not("id", "in", `(${ids.join(",")})`);
+      .not("id", "in", `(${ids.map((id) => `"${String(id).replace(/"/g, '\\"')}"`).join(",")})`);
     if (delErr) throw delErr;
   } else {
     const { error: delAllErr } = await supabase.from(table).delete().neq("id", "");
