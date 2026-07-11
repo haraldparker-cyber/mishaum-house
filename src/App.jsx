@@ -678,7 +678,7 @@ const CSS = `
 `;
 
 const uid = () => Math.random().toString(36).slice(2, 9);
-const BUILD_TAG = "v29 · finance rebuilt: budget, reserve & history · " + new Date().toISOString().slice(0, 10);
+const BUILD_TAG = "v29 · finance rebuilt: budget, reserve & history · " + new Date().toISOString().slice(0, 10) + " · r2";
 
 /* ---------- example/starter data ----------
    Shown only when the shared log is empty — clearly labeled "(example)".
@@ -1618,6 +1618,13 @@ function reserveSparkSVG(financeAll, sel) {
 
 function MaintenanceView({ entries, model, financeAll, pot, rate, allowance, years, maintYear, setMaintYear, onAdd, onEdit, onDelete }) {
   const [copied, setCopied] = useState(false);
+  // The history chart is wider than a phone; when it overflows, start it scrolled
+  // to the right so the most recent years (incl. this one) show without scrolling.
+  const chartRef = useRef(null);
+  useEffect(() => {
+    const el = chartRef.current;
+    if (el && el.scrollWidth > el.clientWidth) el.scrollLeft = el.scrollWidth;
+  }, [financeAll, maintYear]);
   const jo = FAMILIES.jfp, po = FAMILIES.mrp;
   const D = model;
   const yLabel = maintYear === "all" ? "all years" : String(maintYear);
@@ -1782,7 +1789,7 @@ function MaintenanceView({ entries, model, financeAll, pot, rate, allowance, yea
         <div className="finsec">
           <h3>The house over time<span className="hint">carrying costs creep up; capital arrives in lumps</span></h3>
           <div className="fincardbox">
-            <div style={{ overflowX: "auto" }} dangerouslySetInnerHTML={{ __html: historyChartSVG(financeAll, maintYear === "all" ? null : maintYear) }} />
+            <div ref={chartRef} style={{ overflowX: "auto" }} dangerouslySetInnerHTML={{ __html: historyChartSVG(financeAll, maintYear === "all" ? null : maintYear) }} />
             <div className="finlegend">
               <span><i style={{ background: "#2f5647" }} /> Operating</span>
               <span><i style={{ background: "#b0762a" }} /> Capital projects</span>
