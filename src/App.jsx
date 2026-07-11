@@ -105,7 +105,24 @@ const prettyRange = (a, b) => {
   return `${f(A, true)} – ${f(B, !sameMonth)}`;
 };
 const prettyDate = (iso) => { const d = parseISO(iso); return `${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}, ${d.getFullYear()}`; };
-const EXPENSE_CATS = ["Repair", "Maintenance", "Utilities", "Supplies", "Improvement", "Landscaping", "Other"];
+const EXPENSE_CATS = ["Property tax", "Insurance", "Utilities", "Association", "Maintenance", "Repair", "Landscaping", "Supplies", "Improvement", "Capital project", "Reserve contribution", "Other"];
+/* Every expense is one of three kinds:
+   - reserve : a contribution paid INTO the sinking fund (not a shared cost to split)
+   - capital : a big-ticket project drawn FROM the reserve (already funded 50/50, so it
+               doesn't enter who-owes-whom)
+   - operating : the recurring nut (tax, insurance, utilities, dues, upkeep) — split 50/50 */
+const CAPITAL_CATS = new Set(["Capital project", "Improvement"]);
+const RESERVE_CATS = new Set(["Reserve contribution"]);
+const catKind = (c) => RESERVE_CATS.has(c) ? "reserve" : CAPITAL_CATS.has(c) ? "capital" : "operating";
+/* The operating budget rolls the raw categories up into a handful of display buckets. */
+const OP_BUCKETS = [
+  { key: "tax",   label: "Property tax",         cats: ["Property tax"],                              color: "#3d6b5c", desc: "Town of Dartmouth assessment" },
+  { key: "ins",   label: "Insurance",            cats: ["Insurance"],                                 color: "#5b8a7a", desc: "homeowners + flood / wind (coastal)" },
+  { key: "maint", label: "Maintenance & repairs", cats: ["Maintenance", "Repair", "Landscaping", "Supplies", "Other"], color: "#7ea895", desc: "grounds, systems, old-house upkeep" },
+  { key: "util",  label: "Utilities",            cats: ["Utilities"],                                 color: "#a7c3b6", desc: "electric, heat, water, internet" },
+  { key: "assoc", label: "Association",          cats: ["Association"],                                color: "#c8d8ce", desc: "Mishaum Point roads, water & beach" },
+];
+const bucketFor = (c) => OP_BUCKETS.find((b) => b.cats.includes(c)) || OP_BUCKETS[2];
 
 /* ---------- major (always-shared) weekends ---------- */
 const nthMonday = (year, month, first) => {
@@ -256,6 +273,99 @@ const CSS = `
 .mp .sharedrow input{width:16px;height:16px;flex:none}
 .mp .fullsel{width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 10px;
   font-family:var(--sans);font-size:14px;background:var(--card);color:var(--ink)}
+.mp .catnote{font-size:11.5px;color:var(--muted);line-height:1.45;margin-top:7px}
+
+/* ===== redesigned finance page ===== */
+.mp .finpills{display:flex;gap:6px;flex-wrap:wrap}
+.mp .finpills>*:not(:first-child){margin-left:6px}
+.mp .finpill{font-family:var(--mono);font-size:12.5px;border:1px solid var(--line);background:var(--card);
+  color:var(--muted);border-radius:20px;padding:5px 12px;cursor:pointer;transition:all .12s}
+.mp .finpill:hover{color:var(--ink);border-color:var(--muted)}
+.mp .finpill.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+.mp .finsnap{background:var(--ink);color:#e8ece9;border-radius:14px;padding:18px 18px 16px;
+  box-shadow:0 6px 20px rgba(30,42,43,.16);margin-bottom:20px}
+.mp .finsnap .fincap{font-family:var(--serif);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:#9fb1ac;margin-bottom:2px}
+.mp .finsnap .finprop{font-family:var(--mono);font-size:11px;color:#7f938e;margin-bottom:15px}
+.mp .finsnapgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+@media(max-width:640px){.mp .finsnapgrid{grid-template-columns:1fr 1fr}}
+.mp .finstat .k{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:#8ca09a;margin-bottom:5px}
+.mp .finstat .v{font-family:var(--mono);font-size:24px;font-variant-numeric:tabular-nums;color:#fff;line-height:1}
+.mp .finstat .s{font-size:11px;color:#9fb1ac;margin-top:5px}
+.mp .finsettle{margin-top:16px;border-top:1px solid #33443f;padding-top:14px;display:flex;
+  align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.mp .finsettle .msg{font-size:14.5px;line-height:1.4}
+.mp .finsettle .msg b{color:#fff;font-weight:600}
+.mp .finsettle.even .msg{color:#a9d3bf}
+.mp .finpillbtn{flex:none;font-family:var(--sans);font-size:12.5px;font-weight:600;border:1px solid #3c4f4a;
+  background:#26332f;color:#dbe6e1;border-radius:8px;padding:8px 13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.mp .finpillbtn>*:not(:first-child){margin-left:6px}
+.mp .finpillbtn:hover{background:#2f3f39}
+
+.mp .finsec{margin-bottom:20px}
+.mp .finsec>h3{font-family:var(--serif);font-size:18px;font-weight:600;margin:0 0 10px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.mp .finsec>h3 .hint{font-family:var(--sans);font-size:12px;font-weight:400;color:var(--muted)}
+.mp .fincardbox{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+
+.mp .finstack{display:flex;height:16px;border-radius:6px;overflow:hidden;margin:0 0 16px;border:1px solid var(--line)}
+.mp .finstack span{display:block;height:100%}
+.mp .fincat{display:grid;grid-template-columns:14px 1fr auto;gap:11px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.mp .fincat:first-of-type{border-top:none}
+.mp .fincat .dot{width:12px;height:12px;border-radius:3px}
+.mp .fincat .nm{font-size:14.5px}
+.mp .fincat .nm .ds{font-size:12px;color:var(--muted);margin-top:2px}
+.mp .fmeter{height:5px;background:#e5e8e2;border-radius:3px;overflow:hidden;margin-top:6px;max-width:340px}
+.mp .fmeter i{display:block;height:100%;border-radius:3px}
+.mp .fincat .val{text-align:right}
+.mp .fincat .val .amt{font-family:var(--mono);font-size:16px;font-variant-numeric:tabular-nums}
+.mp .fincat .val .pct{font-size:11px;color:var(--muted);font-family:var(--mono)}
+.mp .fincapital{margin-top:14px;border:1px dashed var(--line);border-radius:10px;padding:12px 14px;background:#fbfbf8}
+.mp .fincapital .ct{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
+.mp .fincapital .caprow{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:4px 0;font-size:14px}
+.mp .fincapital .caprow .amt{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+.mp .finres{display:grid;grid-template-columns:1.1fr 1fr;gap:18px}
+@media(max-width:720px){.mp .finres{grid-template-columns:1fr}}
+.mp .finres .rlabel{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
+.mp .finres .rbig{font-family:var(--mono);font-size:30px;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1;margin-bottom:6px}
+.mp .finres .rspk{font-size:10.5px;color:var(--muted);font-family:var(--mono);margin-top:2px}
+.mp .finres .rline{display:flex;justify-content:space-between;font-size:13px;padding:5px 0;color:var(--ink)}
+.mp .finres .rline span:last-child{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.mp .finres .rline.add span:last-child{color:#3f7d5f}
+.mp .finres .rline.draw span:last-child{color:var(--flag)}
+.mp .finres .rline.net{border-top:1px solid var(--line);margin-top:6px;padding-top:9px;font-weight:600}
+.mp .runway{margin-top:11px;font-size:12.5px;color:var(--muted);line-height:1.5}
+.mp .runway.warn{color:var(--flag)}
+
+.mp .finhh{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:560px){.mp .finhh{grid-template-columns:1fr}}
+.mp .finhh .hhcard{border:1px solid var(--line);border-radius:11px;padding:13px 15px;background:#fbfbf8}
+.mp .finhh .hhname{display:flex;align-items:center;gap:9px;font-family:var(--serif);font-size:15.5px;margin-bottom:7px}
+.mp .finhh .hhname>*:not(:first-child){margin-left:9px}
+.mp .finhh .hhname .chip{width:10px;height:10px;border-radius:3px}
+.mp .finhh .hhname .tg{font-family:var(--mono);font-size:10px;color:var(--muted);margin-left:auto}
+.mp .finhh .hhpaid{font-family:var(--mono);font-size:21px;font-variant-numeric:tabular-nums}
+.mp .finhh .hhsub{font-size:11.5px;color:var(--muted);margin-top:4px}
+.mp .finsettlerow{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  margin-top:14px;padding-top:14px;border-top:1px solid var(--line);font-size:14px}
+.mp .finsettlerow b{font-weight:600}
+.mp .copybtn{flex:none;display:inline-flex;align-items:center;gap:7px;background:var(--ink);color:#fff;border:none;
+  border-radius:8px;padding:8px 14px;font-family:var(--sans);font-size:12.5px;font-weight:600;cursor:pointer}
+.mp .copybtn>*:not(:first-child){margin-left:7px}
+.mp .copybtn:hover{opacity:.9}
+.mp .finpottot{display:flex;justify-content:space-between;align-items:baseline;margin-top:14px;padding-top:13px;border-top:1px solid var(--line)}
+.mp .finpottot .lab{font-size:12px;color:var(--muted)}
+.mp .finpottot .big{font-family:var(--mono);font-size:19px;font-variant-numeric:tabular-nums}
+
+.mp .finlegend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:12px}
+.mp .finlegend>*{margin-right:8px;display:inline-flex;align-items:center;gap:6px}
+.mp .finlegend i{width:11px;height:11px;border-radius:3px;display:inline-block}
+.mp .finprojects{margin-top:16px}
+.mp .finprojects .projrow{display:flex;align-items:baseline;gap:12px;padding:7px 0;border-top:1px solid var(--line);font-size:13.5px}
+.mp .finprojects .projrow:first-of-type{border-top:none}
+.mp .finprojects .projrow .yr{font-family:var(--mono);font-size:12px;color:var(--muted);width:42px;flex:none}
+.mp .finprojects .projrow .nm{flex:1}
+.mp .finprojects .projrow .amt{font-family:var(--mono);font-variant-numeric:tabular-nums}
 
 /* message board */
 .mp .boardintro{font-size:12.5px;color:var(--muted);line-height:1.5;margin-bottom:14px;max-width:640px}
@@ -568,7 +678,7 @@ const CSS = `
 `;
 
 const uid = () => Math.random().toString(36).slice(2, 9);
-const BUILD_TAG = "v28 · safer deletes & fresher data · " + new Date().toISOString().slice(0, 10);
+const BUILD_TAG = "v29 · finance rebuilt: budget, reserve & history · " + new Date().toISOString().slice(0, 10);
 
 /* ---------- example/starter data ----------
    Shown only when the shared log is empty — clearly labeled "(example)".
@@ -596,13 +706,19 @@ const SAMPLE_INFO = [
   { id: "ex-i5", label: "Who to call", value: "(example) Dave M. caretaker 508-555-0143 · Coastal Plumbing 508-555-0199" },
 ];
 const SAMPLE_MAINT = [
-  { id: "ex-m1", date: `${_Y}-05-14`, desc: "(example) Roof gutter cleaning", amount: 450,
-    payer: "jfp", category: "Maintenance", shared: true, notes: "" },
-  { id: "ex-m2", date: `${_Y}-06-02`, desc: "(example) New washer/dryer for the Guest Wing", amount: 1200,
-    payer: "mrp", category: "Improvement", shared: true, notes: "" },
-  { id: "ex-m3", date: `${_Y}-06-20`, desc: "(example) Dock board repair", amount: 800,
-    payer: "jfp", category: "Repair", shared: true, notes: "" },
-  { id: "ex-m4", date: `${_Y}-07-05`, desc: "(example) Propane refill", amount: 150,
+  { id: "ex-m0a", date: `${_Y}-01-05`, desc: "(example) Reserve contribution — John's Household", amount: 9000,
+    payer: "jfp", category: "Reserve contribution", shared: false, notes: "" },
+  { id: "ex-m0b", date: `${_Y}-01-05`, desc: "(example) Reserve contribution — Polly's Household", amount: 9000,
+    payer: "mrp", category: "Reserve contribution", shared: false, notes: "" },
+  { id: "ex-m1", date: `${_Y}-02-01`, desc: "(example) Property tax — Town of Dartmouth (H1)", amount: 9600,
+    payer: "jfp", category: "Property tax", shared: true, notes: "" },
+  { id: "ex-m2", date: `${_Y}-02-15`, desc: "(example) Homeowners + flood/wind renewal", amount: 8600,
+    payer: "mrp", category: "Insurance", shared: true, notes: "" },
+  { id: "ex-m3", date: `${_Y}-05-03`, desc: "(example) Landscaping & grounds (season)", amount: 4200,
+    payer: "mrp", category: "Landscaping", shared: true, notes: "" },
+  { id: "ex-m4", date: `${_Y}-06-01`, desc: "(example) Historic window restoration (deposit)", amount: 13250,
+    payer: "jfp", category: "Capital project", shared: true, notes: "drawn from the reserve" },
+  { id: "ex-m5", date: `${_Y}-07-05`, desc: "(example) Propane refill — our stay", amount: 150,
     payer: "mrp", category: "Utilities", shared: false, notes: "used during our stay only" },
 ];
 const SAMPLE_BOARD = [
@@ -625,7 +741,7 @@ export default function App() {
   const [dayView, setDayView] = useState(null); // null | iso string
   const [expModal, setExpModal] = useState(null); // null | {entry}
   const [infoModal, setInfoModal] = useState(null); // null | {item}
-  const [maintYear, setMaintYear] = useState("all"); // "all" | number
+  const [maintYear, setMaintYear] = useState(_Y); // "all" | number
   const [backupMsg, setBackupMsg] = useState("");
   const [saveErr, setSaveErr] = useState(false);
   // Guards for the focus-refresh below: never refetch over an in-flight save
@@ -693,27 +809,74 @@ export default function App() {
     return arr.sort((a, b) => b.date.localeCompare(a.date));
   }, [maint, maintYear]);
 
-  const maintSummary = useMemo(() => {
-    let jfp = 0, mrp = 0, total = 0, sharedJfp = 0, sharedMrp = 0;
-    for (const e of maintFiltered) {
+  /* ---- finance model: roll every expense up by year into operating / capital / reserve ---- */
+  const financeAll = useMemo(() => {
+    const byYear = {};
+    const ensure = (y) => (byYear[y] || (byYear[y] = { op: 0, cap: 0, reserveIn: 0, buckets: {}, capList: [] }));
+    for (const e of maint) {
+      const y = parseISO(e.date).getFullYear();
       const amt = +e.amount || 0;
-      total += amt;
-      if (e.payer === "jfp") jfp += amt;
-      else if (e.payer === "mrp") mrp += amt;
-      if (e.shared !== false) {
-        if (e.payer === "jfp") sharedJfp += amt;
-        else if (e.payer === "mrp") sharedMrp += amt;
+      const k = catKind(e.category);
+      const b = ensure(y);
+      if (k === "reserve") b.reserveIn += amt;
+      else if (k === "capital") { b.cap += amt; b.capList.push(e); }
+      else { b.op += amt; const bk = bucketFor(e.category).key; b.buckets[bk] = (b.buckets[bk] || 0) + amt; }
+    }
+    const years = Object.keys(byYear).map(Number).sort((a, b) => a - b);
+    let bal = 0; const reserveBal = {};
+    for (const y of years) { bal += byYear[y].reserveIn - byYear[y].cap; reserveBal[y] = bal; }
+    return { byYear, years, reserveBal };
+  }, [maint]);
+
+  // years offered in the finance filter (newest first)
+  const maintYears = useMemo(() => financeAll.years.slice().sort((a, b) => b - a), [financeAll]);
+
+  // everything the finance page needs for the selected year (or "all")
+  const fin = useMemo(() => {
+    const sel = maintYear;
+    const yrs = sel === "all" ? financeAll.years : [sel];
+    const buckets = {}; let op = 0, cap = 0; const capList = [];
+    for (const y of yrs) {
+      const b = financeAll.byYear[y]; if (!b) continue;
+      op += b.op; cap += b.cap; capList.push(...b.capList);
+      for (const k in b.buckets) buckets[k] = (buckets[k] || 0) + b.buckets[k];
+    }
+    // reserve movement in the selected span + settle-up (operating shared only)
+    let paidA = 0, paidB = 0, persA = 0, persB = 0, resInA = 0, resInB = 0, resDrawn = 0;
+    for (const e of maintFiltered) {
+      const amt = +e.amount || 0; const k = catKind(e.category);
+      if (k === "reserve") { if (e.payer === "jfp") resInA += amt; else if (e.payer === "mrp") resInB += amt; continue; }
+      if (k === "capital") { resDrawn += amt; continue; }
+      if (e.shared !== false) { if (e.payer === "jfp") paidA += amt; else if (e.payer === "mrp") paidB += amt; }
+      else { if (e.payer === "jfp") persA += amt; else if (e.payer === "mrp") persB += amt; }
+    }
+    const diff = paidA - paidB; // + => John's fronted more, Polly owes
+    const lastY = sel === "all" ? (financeAll.years[financeAll.years.length - 1] ?? year) : sel;
+    return {
+      sel, op, cap, allIn: op + cap, buckets, capList,
+      reserveBal: financeAll.reserveBal[lastY] ?? 0,
+      resInA, resInB, resDrawn,
+      paidA, paidB, persA, persB,
+      owe: Math.abs(diff) / 2, ower: diff > 0 ? "mrp" : "jfp", even: Math.abs(diff) < 0.5,
+    };
+  }, [maintYear, maintFiltered, financeAll, year]);
+
+  // usage pot + exclusive-night tally from the calendar, for the selected finance year
+  const potFor = useMemo(() => {
+    const bn = { jfp: 0, mrp: 0 }, ex = { jfp: 0, mrp: 0 };
+    for (const b of bookings) {
+      if (isPending(b)) continue;
+      const occ = (b.people || 0) + (b.guests || 0);
+      for (const iso of eachNight(b.start, b.end)) {
+        const d = parseISO(iso);
+        if (maintYear !== "all" && d.getFullYear() !== maintYear) continue;
+        if (!(b.family in bn)) continue;
+        bn[b.family] += occ;
+        if (b.type === "exclusive") ex[b.family] += 1;
       }
     }
-    const diff = sharedJfp - sharedMrp; // + => John's overpaid, Polly's owes
-    return { jfp, mrp, total, owe: Math.abs(diff) / 2, ower: diff > 0 ? "mrp" : "jfp", even: Math.abs(diff) < 0.005 };
-  }, [maintFiltered]);
-
-  const maintYears = useMemo(() => {
-    const ys = new Set();
-    maint.forEach((e) => ys.add(parseISO(e.date).getFullYear()));
-    return [...ys].sort((a, b) => b - a);
-  }, [maint]);
+    return { bnA: bn.jfp, bnB: bn.mrp, potA: bn.jfp * rate, potB: bn.mrp * rate, exA: ex.jfp, exB: ex.mrp };
+  }, [bookings, maintYear, rate]);
 
   /* ---- stats per family for the viewed year ---- */
   const stats = useMemo(() => {
@@ -995,35 +1158,14 @@ export default function App() {
         {page === "maintenance" && (
           <MaintenanceView
             entries={maintFiltered}
-            summary={maintSummary}
+            model={fin}
+            financeAll={financeAll}
+            pot={potFor}
+            rate={rate}
+            allowance={allowance}
             years={maintYears}
             maintYear={maintYear}
             setMaintYear={setMaintYear}
-            ledger={
-              <div className="ledger" style={{ marginTop: 2, marginBottom: 18 }}>
-                <h2>House ledger</h2>
-                <div className="yr">season of {year}</div>
-                {Object.values(FAMILIES).map((f) => {
-                  const st = stats[f.key];
-                  const pct = Math.min(100, allowance ? (st.ex / allowance) * 100 : 0);
-                  const over = st.ex > allowance;
-                  return (
-                    <div className="fam" key={f.key}>
-                      <div className="name"><span className="chip" style={{ background: f.color }} />{f.label}<span className="tag">{f.tag}</span></div>
-                      <div className="line"><span>Exclusive nights</span><span className={"v" + (over ? " over" : "")}>{st.ex} / {allowance}</span></div>
-                      <div className="meter"><i style={{ width: pct + "%", background: over ? "#ec8f7f" : f.color }} /></div>
-                      <div className="sub2"><span>July <b>{st.exJul}</b>/14</span><span>Aug <b>{st.exAug}</b>/14</span><span>shared <b>{st.shared}</b></span></div>
-                      <div className="line" style={{ marginTop: 8 }}><span>Into the pot</span><span className="v">${st.pot.toLocaleString()}</span></div>
-                    </div>
-                  );
-                })}
-                <div className="pot">
-                  <div className="cap">Shared pot · {year}</div>
-                  <div className="big">${potTotal.toLocaleString()}</div>
-                  <div className="sub2" style={{ marginTop: 4 }}><span>{bedTotal} bed-nights × ${rate}</span></div>
-                </div>
-              </div>
-            }
             onAdd={() => setExpModal({ entry: null })}
             onEdit={(e) => setExpModal({ entry: e })}
             onDelete={(id) => { if (window.confirm("Delete this expense from the shared log for everyone?")) persistMaint(maint.filter((x) => x.id !== id)); }}
@@ -1434,81 +1576,243 @@ function StayModal({ booking, preset, others = [], onClose, onSave, onDelete }) 
 
 const fmtUSD = (n) => "$" + (Math.round((+n || 0) * 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
-function MaintenanceView({ entries, summary, years, maintYear, setMaintYear, ledger, onAdd, onEdit, onDelete }) {
+/* ---- little SVG charts for the finance page (returned as markup strings) ---- */
+function historyChartSVG(financeAll, sel) {
+  const years = financeAll.years;
+  if (!years.length) return "";
+  const bw = 760, bh = 230, padL = 44, padB = 26, padT = 12, padR = 8;
+  const data = years.map((y) => { const b = financeAll.byYear[y]; return { y, op: b.op, cap: b.cap, all: b.op + b.cap }; });
+  const max = Math.max(1, ...data.map((d) => d.all)) * 1.1;
+  const plotH = bh - padB - padT, plotW = bw - padL - padR;
+  const bwEach = plotW / data.length, barW = Math.min(46, bwEach * 0.56);
+  const sc = (v) => v / max * plotH;
+  let grid = "";
+  for (let g = 0; g <= 4; g++) {
+    const val = max * g / 4, yy = padT + plotH - sc(val);
+    grid += `<line x1="${padL}" y1="${yy.toFixed(1)}" x2="${bw - padR}" y2="${yy.toFixed(1)}" stroke="#e5e8e2"/>` +
+      `<text x="${padL - 6}" y="${(yy + 3).toFixed(1)}" text-anchor="end" font-size="9.5" fill="#9aa39d" font-family="ui-monospace,monospace">$${Math.round(val / 1000)}k</text>`;
+  }
+  const bars = data.map((d, i) => {
+    const cx = padL + i * bwEach + bwEach / 2, x = cx - barW / 2;
+    const opH = sc(d.op), capH = sc(d.cap), opY = padT + plotH - opH, capY = opY - capH;
+    const on = d.y === sel; const hl = on ? ' stroke="#1e2a2b" stroke-width="1.5"' : '';
+    return `<rect x="${x.toFixed(1)}" y="${opY.toFixed(1)}" width="${barW.toFixed(1)}" height="${opH.toFixed(1)}" fill="#2f5647" rx="2"${hl}/>` +
+      `<rect x="${x.toFixed(1)}" y="${capY.toFixed(1)}" width="${barW.toFixed(1)}" height="${capH.toFixed(1)}" fill="#b0762a" rx="2"${hl}/>` +
+      `<text x="${cx.toFixed(1)}" y="${bh - padB + 15}" text-anchor="middle" font-size="11" fill="${on ? '#1e2a2b' : '#6c7772'}" font-family="ui-monospace,monospace" font-weight="${on ? '700' : '400'}">${d.y}</text>` +
+      `<text x="${cx.toFixed(1)}" y="${(capY - 5).toFixed(1)}" text-anchor="middle" font-size="9" fill="#6c7772" font-family="ui-monospace,monospace">$${Math.round(d.all / 1000)}k</text>`;
+  }).join("");
+  return `<svg width="100%" viewBox="0 0 ${bw} ${bh}" style="min-width:620px">${grid}${bars}</svg>`;
+}
+function reserveSparkSVG(financeAll, sel) {
+  const years = financeAll.years;
+  if (years.length < 2) return "";
+  const w = 260, h = 46, pad = 5;
+  const pts = years.map((y) => ({ y, bal: financeAll.reserveBal[y] }));
+  const max = Math.max(...pts.map((p) => p.bal)), min = Math.min(0, ...pts.map((p) => p.bal));
+  const x = (i) => pad + i * (w - 2 * pad) / (pts.length - 1);
+  const yv = (v) => h - pad - (v - min) / (max - min || 1) * (h - 2 * pad);
+  const line = pts.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${yv(p.bal).toFixed(1)}`).join(" ");
+  const dots = pts.map((p, i) => `<circle cx="${x(i).toFixed(1)}" cy="${yv(p.bal).toFixed(1)}" r="${p.y === sel ? 3 : 2}" fill="${p.y === sel ? '#1e2a2b' : '#9aa39d'}"/>`).join("");
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><path d="${line}" fill="none" stroke="#7ea895" stroke-width="1.6"/>${dots}</svg>`;
+}
+
+function MaintenanceView({ entries, model, financeAll, pot, rate, allowance, years, maintYear, setMaintYear, onAdd, onEdit, onDelete }) {
   const [copied, setCopied] = useState(false);
+  const jo = FAMILIES.jfp, po = FAMILIES.mrp;
+  const D = model;
+  const yLabel = maintYear === "all" ? "all years" : String(maintYear);
+  const opTot = Math.max(1, D.op);
+  const other = D.ower === "jfp" ? "mrp" : "jfp";
+  const bnTot = pot.bnA + pot.bnB;
+  const allProjects = financeAll.years.slice().reverse()
+    .flatMap((y) => financeAll.byYear[y].capList.map((e) => ({ ...e, y })))
+    .sort((a, b) => b.date.localeCompare(a.date));
+
   const copySummary = () => {
-    const yr = maintYear === "all" ? "All time" : String(maintYear);
     const lines = [
-      `Mishaum Point — shared cost summary (${yr})`,
+      `Mishaum Point — house accounts (${yLabel})`,
       ``,
-      `${FAMILIES.jfp.label} paid:  ${fmtUSD(summary.jfp)}`,
-      `${FAMILIES.mrp.label} paid:  ${fmtUSD(summary.mrp)}`,
-      `Total logged:  ${fmtUSD(summary.total)}`,
+      `All-in cost:   ${fmtUSD(D.allIn)}  (${fmtUSD(D.op)} operating + ${fmtUSD(D.cap)} capital)`,
+      `Per household: ${fmtUSD(D.allIn / 2)}`,
+      `Reserve fund:  ${fmtUSD(D.reserveBal)} at period end`,
       ``,
-      summary.even
-        ? `Shared costs are even — nothing owed either way.`
-        : `To even up shared costs 50/50: ${FAMILIES[summary.ower].label} owes ${FAMILIES[summary.ower === "jfp" ? "mrp" : "jfp"].label} ${fmtUSD(summary.owe)}.`,
-      ``,
-      `${entries.length} expense${entries.length === 1 ? "" : "s"} logged. Generated ${prettyDate(toISO(new Date()))}.`,
+      `Shared operating fronted — ${jo.label}: ${fmtUSD(D.paidA)} · ${po.label}: ${fmtUSD(D.paidB)}`,
+      D.even
+        ? `Square — nothing owed either way.`
+        : `${FAMILIES[D.ower].label} owes ${FAMILIES[other].label} ${fmtUSD(D.owe)} to even 50/50.`,
     ];
     const text = lines.join("\n");
     const done = () => { setCopied(true); setTimeout(() => setCopied(false), 2500); };
     if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(done).catch(done);
     else done();
   };
+
   return (
     <div className="maint">
       <div className="mainthead">
         <h2>Finance</h2>
-        <select className="mfilter" value={maintYear} onChange={(e) => setMaintYear(e.target.value === "all" ? "all" : +e.target.value)}>
-          <option value="all">All time</option>
-          {years.map((y) => <option key={y} value={y}>{y}</option>)}
-        </select>
-      </div>
-
-      {ledger}
-
-      <div className="msummary">
-        <div className="mcard">
-          <div className="mcap">John's Household paid</div>
-          <div className="mval" style={{ color: FAMILIES.jfp.color }}>{fmtUSD(summary.jfp)}</div>
-        </div>
-        <div className="mcard">
-          <div className="mcap">Polly's Household paid</div>
-          <div className="mval" style={{ color: FAMILIES.mrp.color }}>{fmtUSD(summary.mrp)}</div>
-        </div>
-        <div className="mcard">
-          <div className="mcap">Total logged</div>
-          <div className="mval">{fmtUSD(summary.total)}</div>
+        <div className="finpills">
+          <button className={"finpill" + (maintYear === "all" ? " on" : "")} onClick={() => setMaintYear("all")}>All time</button>
+          {years.map((y) => (
+            <button key={y} className={"finpill" + (maintYear === y ? " on" : "")} onClick={() => setMaintYear(y)}>{y}</button>
+          ))}
         </div>
       </div>
 
-      <div className={"settleup" + (summary.even ? " even" : "")}>
-        {summary.even
-          ? "All square on shared costs — nothing owed either way."
-          : <>To even up shared costs 50/50, <b>{FAMILIES[summary.ower].label}</b> owes <b>{FAMILIES[summary.ower === "jfp" ? "mrp" : "jfp"].label}</b> {fmtUSD(summary.owe)}.</>}
+      {/* 1 · snapshot */}
+      <div className="finsnap">
+        <div className="fincap">The house · {yLabel}</div>
+        <div className="finprop">Mishaum Point · South Dartmouth, MA</div>
+        <div className="finsnapgrid">
+          <div className="finstat"><div className="k">All-in cost</div><div className="v">{fmtUSD(D.allIn)}</div>
+            <div className="s">{fmtUSD(D.op)} to run + {fmtUSD(D.cap)} capital</div></div>
+          <div className="finstat"><div className="k">Per household</div><div className="v">{fmtUSD(D.allIn / 2)}</div>
+            <div className="s">split 50/50 by ownership</div></div>
+          <div className="finstat"><div className="k">Reserve fund</div><div className="v">{fmtUSD(D.reserveBal)}</div>
+            <div className="s">{D.reserveBal < 25000 ? "running low — worth a top-up" : "for the next big job"}</div></div>
+        </div>
+        <div className={"finsettle" + (D.even ? " even" : "")}>
+          <div className="msg">{D.even
+            ? "Shared costs are square — nothing owed either way."
+            : <>To even shared costs 50/50, <b>{FAMILIES[D.ower].label}</b> owes <b>{FAMILIES[other].label}</b> <b>{fmtUSD(D.owe)}</b>.</>}</div>
+          <button className="finpillbtn" onClick={copySummary}>{copied ? <><Check size={14} /> Copied</> : "Copy summary"}</button>
+        </div>
       </div>
 
-      <div className="settlerow">
-        <button className="copybtn" onClick={copySummary}>
-          {copied ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy summary ({maintYear === "all" ? "all time" : maintYear})</>}
-        </button>
-        <span className="settlehint">Paste it into an email or text to close the books for the year.</span>
+      {/* 2 · operating budget */}
+      <div className="finsec">
+        <h3>Where the money goes<span className="hint">the recurring nut — split by ownership, whether anyone visits or not</span></h3>
+        <div className="fincardbox">
+          <div className="finstack">
+            {OP_BUCKETS.map((b) => { const a = D.buckets[b.key] || 0; return a ? <span key={b.key} style={{ width: (a / opTot * 100) + "%", background: b.color }} title={`${b.label} ${fmtUSD(a)}`} /> : null; })}
+          </div>
+          {OP_BUCKETS.map((b) => {
+            const a = D.buckets[b.key] || 0; const pct = a / opTot * 100;
+            return (
+              <div className="fincat" key={b.key}>
+                <span className="dot" style={{ background: b.color }} />
+                <div><div className="nm">{b.label}<div className="ds">{b.desc}</div></div>
+                  <div className="fmeter"><i style={{ width: pct + "%", background: b.color }} /></div></div>
+                <div className="val"><div className="amt">{fmtUSD(a)}</div><div className="pct">{pct.toFixed(0)}%</div></div>
+              </div>
+            );
+          })}
+          {D.capList.length > 0 && (
+            <div className="fincapital">
+              <div className="ct">Capital projects — funded from the reserve</div>
+              {D.capList.map((c) => (
+                <div className="caprow" key={c.id}><span>{c.desc}</span><span className="amt">{fmtUSD(c.amount)}</span></div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="lower" style={{ marginTop: 20 }}>
-        <h2>Log <span className="count">{entries.length}</span>
+      {/* 3 · reserve */}
+      <div className="finsec">
+        <h3>Reserve fund<span className="hint">the sinking fund for big-ticket jobs</span></h3>
+        <div className="fincardbox">
+          <div className="finres">
+            <div>
+              <div className="rlabel">Balance, end of {yLabel}</div>
+              <div className="rbig">{fmtUSD(D.reserveBal)}</div>
+              <div dangerouslySetInnerHTML={{ __html: reserveSparkSVG(financeAll, maintYear === "all" ? null : maintYear) }} />
+              <div className="rspk">reserve balance{financeAll.years.length ? ` · ${financeAll.years[0]}–${financeAll.years[financeAll.years.length - 1]}` : ""}</div>
+              <div className={"runway" + (D.reserveBal < 25000 ? " warn" : "")}>{D.reserveBal < 25000
+                ? "Thin for an old house — roofs and docks run $30–46k. Bumping each household's yearly contribution rebuilds a one-big-job cushion."
+                : "Healthy — enough for one major project outright, or several years of routine upkeep."}</div>
+            </div>
+            <div>
+              <div className="rlabel">Movement · {yLabel}</div>
+              <div className="rline add"><span>{jo.label} paid in</span><span>+{fmtUSD(D.resInA)}</span></div>
+              <div className="rline add"><span>{po.label} paid in</span><span>+{fmtUSD(D.resInB)}</span></div>
+              <div className="rline draw"><span>Drawn for capital</span><span>−{fmtUSD(D.resDrawn)}</span></div>
+              <div className="rline net"><span>Net change</span><span>{(D.resInA + D.resInB - D.resDrawn) >= 0 ? "+" : "−"}{fmtUSD(Math.abs(D.resInA + D.resInB - D.resDrawn))}</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 4 · settle up */}
+      <div className="finsec">
+        <h3>Settling up<span className="hint">operating bills netted back to 50/50 — capital & personal costs excluded</span></h3>
+        <div className="fincardbox">
+          <div className="finhh">
+            {[[jo, D.paidA, D.persA], [po, D.paidB, D.persB]].map(([f, paid, pers]) => (
+              <div className="hhcard" key={f.key}>
+                <div className="hhname"><span className="chip" style={{ background: f.color }} />{f.label}<span className="tg">{f.tag}</span></div>
+                <div className="hhpaid" style={{ color: f.color }}>{fmtUSD(paid)}</div>
+                <div className="hhsub">fronted in shared operating{pers ? ` · plus ${fmtUSD(pers)} personal (not split)` : ""}</div>
+              </div>
+            ))}
+          </div>
+          <div className="finsettlerow">
+            <div>{D.even
+              ? <span>All square — nothing owed either way.</span>
+              : <><b>{FAMILIES[D.ower].label}</b> owes <b>{FAMILIES[other].label}</b> <b>{fmtUSD(D.owe)}</b> to close {yLabel}.</>}</div>
+            <button className="copybtn" onClick={copySummary}>{copied ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy summary</>}</button>
+          </div>
+        </div>
+      </div>
+
+      {/* 5 · usage pot */}
+      <div className="finsec">
+        <h3>Usage pot<span className="hint">consumables, shared by how much each household actually uses the house</span></h3>
+        <div className="fincardbox">
+          {bnTot === 0
+            ? <div className="empty" style={{ margin: 0 }}>No stays logged for {yLabel} yet — the pot fills in from the calendar as visits are booked.</div>
+            : <>
+              <div className="finhh">
+                {[[jo, pot.bnA, pot.potA, pot.exA], [po, pot.bnB, pot.potB, pot.exB]].map(([f, bn, potv, ex]) => (
+                  <div className="hhcard" key={f.key}>
+                    <div className="hhname"><span className="chip" style={{ background: f.color }} />{f.label}<span className="tg">{bn} bed-nights</span></div>
+                    <div className="hhpaid" style={{ color: f.color }}>{fmtUSD(potv)}</div>
+                    <div className="hhsub">{bn} bed-nights × ${rate} · {ex}/{allowance} exclusive nights</div>
+                    <div className="fmeter" style={{ marginTop: 8 }}><i style={{ width: (bn / Math.max(1, pot.bnA, pot.bnB) * 100) + "%", background: f.color }} /></div>
+                  </div>
+                ))}
+              </div>
+              <div className="finpottot"><span className="lab">{bnTot} bed-nights × ${rate}</span><span className="big">{fmtUSD(pot.potA + pot.potB)} into the pot</span></div>
+            </>}
+        </div>
+      </div>
+
+      {/* 6 · history */}
+      {financeAll.years.length > 0 && (
+        <div className="finsec">
+          <h3>The house over time<span className="hint">carrying costs creep up; capital arrives in lumps</span></h3>
+          <div className="fincardbox">
+            <div style={{ overflowX: "auto" }} dangerouslySetInnerHTML={{ __html: historyChartSVG(financeAll, maintYear === "all" ? null : maintYear) }} />
+            <div className="finlegend">
+              <span><i style={{ background: "#2f5647" }} /> Operating</span>
+              <span><i style={{ background: "#b0762a" }} /> Capital projects</span>
+            </div>
+            {allProjects.length > 0 && (
+              <div className="finprojects">
+                <div className="rlabel" style={{ marginBottom: 4 }}>Big projects, by year</div>
+                {allProjects.map((p) => (
+                  <div className="projrow" key={p.id}><span className="yr">{p.y}</span><span className="nm">{p.desc}</span><span className="amt">{fmtUSD(p.amount)}</span></div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 7 · ledger */}
+      <div className="lower" style={{ marginTop: 22 }}>
+        <h2>Recent activity <span className="count">{entries.length}</span>
           <button className="export" onClick={onAdd}><Plus size={14} /> Add expense</button>
         </h2>
-        {entries.length === 0 && <div className="empty">No expenses logged yet. Add the first one to start the log.</div>}
+        {entries.length === 0 && <div className="empty">No expenses logged for {yLabel}. Add one to start the log.</div>}
         {entries.map((e) => {
-          const f = FAMILIES[e.payer];
+          const f = FAMILIES[e.payer]; const k = catKind(e.category);
           return (
             <div className="stay" key={e.id}>
               <div className="swipe" style={{ background: f ? f.color : "#9aa39d" }} />
               <div className="when">{fmtUSD(e.amount)}<div className="who">{prettyDate(e.date)}</div></div>
               <div className="who famcol">{e.desc || "—"}
-                <span className="roomtag">{e.category || "Other"}{e.shared === false ? " · not shared" : ""}</span>
+                <span className="roomtag">{e.category || "Other"}{k === "capital" ? " · from reserve" : k === "reserve" ? " · into reserve" : e.shared === false ? " · personal" : ""}</span>
               </div>
               <div className="who" style={{ minWidth: 96 }}>{f ? f.label : "Other"}</div>
               <span className="sp" />
@@ -1563,14 +1867,23 @@ function ExpenseModal({ entry, onClose, onSave, onDelete }) {
 
         <div className="field"><span>Category</span>
           <select className="fullsel" value={category} onChange={(e) => setCategory(e.target.value)}>
-            {EXPENSE_CATS.map((c) => <option key={c} value={c}>{c}</option>)}
+            <optgroup label="Operating (the recurring nut)">
+              {EXPENSE_CATS.filter((c) => catKind(c) === "operating").map((c) => <option key={c} value={c}>{c}</option>)}
+            </optgroup>
+            <optgroup label="Capital & reserve">
+              {EXPENSE_CATS.filter((c) => catKind(c) !== "operating").map((c) => <option key={c} value={c}>{c}</option>)}
+            </optgroup>
           </select>
+          {catKind(category) === "capital" && <div className="catnote">Big-ticket project — drawn from the reserve. It won't appear in who-owes-whom (the reserve is already funded 50/50).</div>}
+          {catKind(category) === "reserve" && <div className="catnote">A contribution paid into the reserve fund. Grows the balance; not a shared cost to split.</div>}
         </div>
 
-        <label className="sharedrow">
-          <input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} />
-          <span>Shared cost — split 50/50 (counts toward who owes whom)</span>
-        </label>
+        {catKind(category) === "operating" && (
+          <label className="sharedrow">
+            <input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} />
+            <span>Shared cost — split 50/50 (counts toward who owes whom)</span>
+          </label>
+        )}
 
         <div className="field" style={{ marginTop: 12 }}><span>Notes (optional)</span><input type="text" value={notes} placeholder="anything worth remembering" onChange={(e) => setNotes(e.target.value)} /></div>
 
