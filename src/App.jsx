@@ -331,7 +331,7 @@ const CSS = `
 .mp .finres .rspk{font-size:10.5px;color:var(--muted);font-family:var(--mono);margin-top:2px}
 .mp .finres .rline{display:flex;justify-content:space-between;font-size:13px;padding:5px 0;color:var(--ink)}
 .mp .finres .rline span:last-child{font-family:var(--mono);font-variant-numeric:tabular-nums}
-.mp .finres .rline.add span:last-child{color:#3f7d5f}
+.mp .finres .rline.radd span:last-child{color:#3f7d5f}
 .mp .finres .rline.draw span:last-child{color:var(--flag)}
 .mp .finres .rline.net{border-top:1px solid var(--line);margin-top:6px;padding-top:9px;font-weight:600}
 .mp .runway{margin-top:11px;font-size:12.5px;color:var(--muted);line-height:1.5}
@@ -1724,8 +1724,8 @@ function MaintenanceView({ entries, model, financeAll, pot, rate, allowance, yea
             </div>
             <div>
               <div className="rlabel">Movement · {yLabel}</div>
-              <div className="rline add"><span>{jo.label} paid in</span><span>+{fmtUSD(D.resInA)}</span></div>
-              <div className="rline add"><span>{po.label} paid in</span><span>+{fmtUSD(D.resInB)}</span></div>
+              <div className="rline radd"><span>{jo.label} paid in</span><span>+{fmtUSD(D.resInA)}</span></div>
+              <div className="rline radd"><span>{po.label} paid in</span><span>+{fmtUSD(D.resInB)}</span></div>
               <div className="rline draw"><span>Drawn for capital</span><span>−{fmtUSD(D.resDrawn)}</span></div>
               <div className="rline net"><span>Net change</span><span>{(D.resInA + D.resInB - D.resDrawn) >= 0 ? "+" : "−"}{fmtUSD(Math.abs(D.resInA + D.resInB - D.resDrawn))}</span></div>
             </div>
