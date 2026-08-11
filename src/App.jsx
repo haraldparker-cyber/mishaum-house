@@ -220,6 +220,7 @@ const CSS = `
 .mp .burgee{width:46px;height:auto;flex:none;filter:drop-shadow(0 2px 6px rgba(10,18,16,.5))}
 .mp .hero .sub.light{text-shadow:0 1px 8px rgba(15,25,22,.55)}
 .mp .heroadd{position:absolute;top:14px;right:14px;background:rgba(255,255,255,.92);color:var(--ink);
+.mp .egg{position:absolute;bottom:10px;right:14px;color:#fff;font-size:11px;letter-spacing:.14em;text-transform:uppercase;opacity:.38;text-shadow:0 1px 6px rgba(15,25,22,.6);pointer-events:none;user-select:none}
   backdrop-filter:blur(3px)}
 .mp .heroadd:hover{background:#fff}
 @media(max-width:560px){
@@ -998,6 +999,7 @@ export default function App() {
               </div>
             </div>
           </div>
+          <div className="egg">Harald's AI</div>
         </div>
 
         <div className="tabrow">
