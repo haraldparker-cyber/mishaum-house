@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mishaum Point · Finance (redesign preview)</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400&display=swap');
+*{box-sizing:border-box;min-width:0}
+:root{
+  --paper:#eceee9; --card:#f7f8f4; --ink:#1e2a2b; --muted:#6c7772;
+  --line:#d4d9d2; --flag:#98413c;
+  --john:#1c5a63; --johnsoft:#dbe8e7;
+  --polly:#b0762a; --pollysoft:#efe1c8;
+  --serif:'Spectral',Georgia,'Times New Roman',serif;
+  --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,sans-serif;
+  --mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+}
+body{font-family:var(--sans);color:var(--ink);background:var(--paper);margin:0;
+  padding:26px 18px 60px;line-height:1.45;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1060px;margin:0 auto}
+.tophead{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap;
+  border-bottom:1.5px solid var(--ink);padding-bottom:12px;margin-bottom:18px}
+h1{font-family:var(--serif);font-weight:600;font-size:24px;margin:0;letter-spacing:.2px}
+.tophead .sub{font-size:12px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-top:4px}
+.previewtag{font-family:var(--mono);font-size:10.5px;letter-spacing:.03em;color:#7a5a1f;
+  background:#f4efe0;border:1px solid #e2d4ab;border-radius:5px;padding:3px 8px}
+
+/* year pills */
+.years{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px}
+.years button{font-family:var(--mono);font-size:13px;border:1px solid var(--line);background:var(--card);
+  color:var(--muted);border-radius:20px;padding:6px 14px;cursor:pointer;transition:all .12s}
+.years button:hover{color:var(--ink);border-color:var(--muted)}
+.years button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+/* section shell */
+.sec{margin-bottom:22px}
+.sec>h2{font-family:var(--serif);font-size:20px;font-weight:600;margin:0 0 3px;display:flex;
+  align-items:baseline;gap:10px;flex-wrap:wrap}
+.sec>h2 .note{font-family:var(--sans);font-size:12px;font-weight:400;color:var(--muted);letter-spacing:0}
+.seclede{font-size:13px;color:var(--muted);line-height:1.5;margin:0 0 14px;max-width:680px}
+
+/* snapshot hero (dark) */
+.snap{background:var(--ink);color:#e8ece9;border-radius:14px;padding:20px 20px 18px;
+  box-shadow:0 6px 20px rgba(30,42,43,.16)}
+.snap .caption{font-family:var(--serif);font-size:13px;letter-spacing:.14em;text-transform:uppercase;
+  color:#9fb1ac;margin:0 0 2px}
+.snap .property{font-family:var(--mono);font-size:11.5px;color:#7f938e;margin-bottom:16px}
+.snapgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media(max-width:640px){.snapgrid{grid-template-columns:1fr 1fr}}
+.stat .k{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#8ca09a;margin-bottom:6px}
+.stat .v{font-family:var(--mono);font-size:27px;font-variant-numeric:tabular-nums;color:#fff;line-height:1}
+.stat .s{font-size:11.5px;color:#9fb1ac;margin-top:6px}
+.settlebar{margin-top:18px;border-top:1px solid #33443f;padding-top:15px;display:flex;
+  align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.settlebar .msg{font-size:15px;line-height:1.4}
+.settlebar .msg b{color:#fff}
+.settlebar.even .msg{color:#a9d3bf}
+.pillbtn{font-family:var(--sans);font-size:12.5px;font-weight:600;border:1px solid #3c4f4a;
+  background:#26332f;color:#dbe6e1;border-radius:8px;padding:8px 13px;cursor:pointer}
+.pillbtn:hover{background:#2f3f39}
+
+/* generic card */
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+
+/* budget category rows */
+.stackbar{display:flex;height:16px;border-radius:6px;overflow:hidden;margin:2px 0 18px;border:1px solid var(--line)}
+.stackbar span{display:block;height:100%}
+.catrow{display:grid;grid-template-columns:16px 1fr auto;gap:11px;align-items:center;
+  padding:11px 0;border-top:1px solid var(--line)}
+.catrow:first-of-type{border-top:none}
+.catdot{width:12px;height:12px;border-radius:3px}
+.catname{font-size:14.5px}
+.catname .desc{font-size:12px;color:var(--muted);margin-top:2px}
+.catmeter{height:5px;background:#e5e8e2;border-radius:3px;overflow:hidden;margin-top:6px;max-width:340px}
+.catmeter i{display:block;height:100%;border-radius:3px}
+.catval{text-align:right}
+.catval .amt{font-family:var(--mono);font-size:16px;font-variant-numeric:tabular-nums}
+.catval .pct{font-size:11px;color:var(--muted);font-family:var(--mono)}
+
+/* capital callout */
+.capital{margin-top:14px;border:1px dashed var(--line);border-radius:10px;padding:13px 15px;background:#fbfbf8}
+.capital .ct{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.caprow{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:5px 0;font-size:14px}
+.caprow .amt{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.caprow .prog{font-size:11px;color:var(--polly);font-family:var(--mono)}
+
+/* reserve */
+.resgrid{display:grid;grid-template-columns:1.1fr 1fr;gap:16px}
+@media(max-width:720px){.resgrid{grid-template-columns:1fr}}
+.resbig{font-family:var(--mono);font-size:32px;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1}
+.reslabel{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
+.resline{display:flex;justify-content:space-between;font-size:13px;padding:5px 0;color:var(--ink)}
+.resline span:last-child{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.resline.draw span:last-child{color:var(--flag)}
+.resline.add span:last-child{color:#3f7d5f}
+.runway{margin-top:10px;font-size:12.5px;color:var(--muted);line-height:1.5}
+.runway.warn{color:var(--flag)}
+.spark{margin-top:6px}
+
+/* households settle */
+.hh{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:560px){.hh{grid-template-columns:1fr}}
+.hhcard{border:1px solid var(--line);border-radius:11px;padding:14px 16px;background:var(--card)}
+.hhname{display:flex;align-items:center;gap:9px;font-family:var(--serif);font-size:16px;margin-bottom:8px}
+.hhname .chip{width:10px;height:10px;border-radius:3px}
+.hhname .tag{font-family:var(--mono);font-size:10px;color:var(--muted);margin-left:auto}
+.hhpaid{font-family:var(--mono);font-size:22px;font-variant-numeric:tabular-nums}
+.hhsub{font-size:11.5px;color:var(--muted);margin-top:4px}
+
+/* usage pot */
+.potgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:8px}
+@media(max-width:560px){.potgrid{grid-template-columns:1fr}}
+.potmeter{height:6px;background:#e5e8e2;border-radius:3px;overflow:hidden;margin-top:8px}
+.potmeter i{display:block;height:100%}
+.pottot{border-top:1px solid var(--line);margin-top:6px;padding-top:12px;display:flex;
+  justify-content:space-between;align-items:baseline}
+.pottot .big{font-family:var(--mono);font-size:20px;font-variant-numeric:tabular-nums}
+
+/* history chart */
+.chartwrap{overflow-x:auto}
+.legendrow{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:12px 0 0}
+.legendrow .sw{display:inline-flex;align-items:center;gap:6px}
+.legendrow .sw i{width:11px;height:11px;border-radius:3px;display:inline-block}
+.bigprojects{margin-top:16px}
+.projrow{display:flex;align-items:baseline;gap:12px;padding:8px 0;border-top:1px solid var(--line);font-size:13.5px}
+.projrow:first-child{border-top:none}
+.projrow .yr{font-family:var(--mono);font-size:12px;color:var(--muted);width:44px;flex:none}
+.projrow .nm{flex:1}
+.projrow .amt{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* ledger */
+.stay{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);
+  border-radius:10px;padding:10px 13px;margin-top:8px}
+.stay .swipe{width:5px;align-self:stretch;border-radius:3px;flex:none;min-height:34px}
+.stay .when{font-family:var(--serif);font-size:15px;min-width:96px}
+.stay .when .d{font-size:11.5px;color:var(--muted);font-family:var(--sans)}
+.stay .what{flex:1;font-size:13.5px}
+.stay .what .cat{font-size:11px;color:var(--muted);margin-top:2px}
+.stay .who{font-size:12px;color:var(--muted);min-width:90px;text-align:right}
+.tagpill{display:inline-block;font-size:10px;font-family:var(--mono);padding:1px 6px;border-radius:20px;
+  border:1px solid var(--line);color:var(--muted);margin-left:6px}
+.personal{color:var(--polly);border-color:var(--pollysoft)}
+.small{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5}
+.divider{height:1px;background:var(--line);margin:26px 0}
+.footnote{font-size:11.5px;color:var(--muted);line-height:1.6;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="tophead">
+    <div>
+      <h1>Finance</h1>
+      <div class="sub">Mishaum Point · house accounts</div>
+    </div>
+    <span class="previewtag">redesign preview · sample data</span>
+  </div>
+
+  <div class="years" id="years"></div>
+
+  <!-- 1. SNAPSHOT -->
+  <div class="sec">
+    <div class="snap" id="snap"></div>
+  </div>
+
+  <!-- 2. OPERATING BUDGET -->
+  <div class="sec">
+    <h2>Where the money goes <span class="note" id="opYearNote"></span></h2>
+    <p class="seclede">The recurring nut — what the house costs to own and keep running, whether anyone visits or not. These are split by ownership, not by who uses it.</p>
+    <div class="card">
+      <div class="stackbar" id="stackbar"></div>
+      <div id="catrows"></div>
+      <div class="capital" id="capital"></div>
+    </div>
+  </div>
+
+  <!-- 3. RESERVE FUND -->
+  <div class="sec">
+    <h2>Reserve fund <span class="note">the sinking fund for big-ticket jobs</span></h2>
+    <p class="seclede">An old house doesn't fail on a schedule. Both households pay in a fixed amount each year so a new roof or a rotted sill comes out of a pot that's already there — not a surprise bill split in a panic.</p>
+    <div class="card">
+      <div class="resgrid">
+        <div>
+          <div class="reslabel">Balance, end of <span class="ry"></span></div>
+          <div class="resbig" id="resBal"></div>
+          <div class="spark" id="resSpark"></div>
+          <div class="runway" id="runway"></div>
+        </div>
+        <div id="resDetail"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. SETTLE UP -->
+  <div class="sec">
+    <h2>Settling up <span class="note" id="suYearNote"></span></h2>
+    <p class="seclede">Everyone fronts different operating bills through the year. This nets them back to a clean 50/50. Capital projects don't appear here — they come out of the reserve, which both households already fund equally — and personal costs (a household's own propane on their week) don't count either.</p>
+    <div class="card">
+      <div class="hh" id="hh"></div>
+      <div class="settlebar" id="settleInline" style="background:none;box-shadow:none;padding-top:16px;margin-top:16px;color:var(--ink)"></div>
+    </div>
+  </div>
+
+  <!-- 5. USAGE POT -->
+  <div class="sec">
+    <h2>Usage pot <span class="note">consumables, shared by how much each household uses the house</span></h2>
+    <p class="seclede">Fixed costs split evenly; the day-to-day consumables shouldn't. Each bed-night contributes to a small pot, so the household that's there all summer carries more of the wear-and-tear.</p>
+    <div class="card">
+      <div class="potgrid" id="potgrid"></div>
+      <div class="pottot" id="pottot"></div>
+    </div>
+  </div>
+
+  <!-- 6. HISTORY -->
+  <div class="sec">
+    <h2>The house over time <span class="note">every year on record</span></h2>
+    <p class="seclede">Carrying costs creep up; capital comes in lumps. Seeing both together is how you know when to raise the reserve contribution before it runs dry.</p>
+    <div class="card">
+      <div class="chartwrap"><div id="historyChart"></div></div>
+      <div class="legendrow">
+        <span class="sw"><i style="background:#2f5647"></i> Operating (taxes, insurance, upkeep)</span>
+        <span class="sw"><i style="background:var(--polly)"></i> Capital projects</span>
+      </div>
+      <div class="bigprojects">
+        <div class="reslabel" style="margin-bottom:6px">Big projects, by year</div>
+        <div id="projects"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. LEDGER -->
+  <div class="sec">
+    <h2>Recent activity <span class="note" id="ledYearNote"></span></h2>
+    <div id="ledger"></div>
+    <div class="footnote">Every line is tagged to a household and a category, marked shared or personal, and rolls up into the sections above automatically. Add a bill once and the budget, the settle-up and the history all update.</div>
+  </div>
+
+  <div class="divider"></div>
+  <div class="footnote">
+    <b>Sample figures</b> for the house at Mishaum Point, South Dartmouth MA — property tax in the range for Dartmouth's residential rate, plus coastal homeowners + flood/wind insurance, a private-association assessment, old-house upkeep, and a capital history (roof, sills, dock, septic). Numbers are illustrative, to show the page working across years.
+  </div>
+</div>
+
+<script>
+const FAM = {
+  john:  { key:"john",  label:"John's Household",  tag:"JFP", color:"#1c5a63", soft:"#dbe8e7", size:5 },
+  polly: { key:"polly", label:"Polly's Household", tag:"MRP", color:"#b0762a", soft:"#efe1c8", size:3 },
+};
+const RATE = 50; // per bed-night into the usage pot
+
+// ---- per-year source figures (illustrative) ----
+// operating categories + capital projects + bed-nights.
+const RAW = {
+  2020:{ tax:14800, ins:9200,  util:7100, assoc:3200, maint:9800,  cap:[{n:"Boiler & heating replacement", a:11500}], bnJohn:62, bnPolly:38 },
+  2021:{ tax:15300, ins:10400, util:7400, assoc:3300, maint:10600, cap:[{n:"New cedar-shake roof", a:46000}],        bnJohn:70, bnPolly:44 },
+  2022:{ tax:15900, ins:11800, util:7900, assoc:3500, maint:11200, cap:[{n:"Sill & foundation repair (rot)", a:22400}], bnJohn:66, bnPolly:48 },
+  2023:{ tax:16600, ins:12900, util:8200, assoc:3700, maint:12100, cap:[{n:"Full exterior repaint", a:18300}],        bnJohn:74, bnPolly:46 },
+  2024:{ tax:17400, ins:14100, util:8600, assoc:4000, maint:12800, cap:[{n:"Dock & float rebuild", a:31200}],          bnJohn:78, bnPolly:52 },
+  2025:{ tax:18300, ins:15600, util:8900, assoc:4200, maint:13400, cap:[{n:"Chimney rebuild & repointing", a:14800}],  bnJohn:72, bnPolly:50 },
+  2026:{ tax:19200, ins:17200, util:9300, assoc:4500, maint:14100, cap:[{n:"Historic window restoration (in progress)", a:26500, partial:0.5}], bnJohn:48, bnPolly:30 },
+};
+const YEARS = Object.keys(RAW).map(Number).sort((a,b)=>a-b);
+const RESERVE_START = 62000; // balance entering 2020
+const CONTRIB_EACH = 9000;   // each household pays into the reserve, per year
+
+const fmt = n => "$" + Math.round(n).toLocaleString();
+const fmtK = n => "$" + (Math.round(n/100)/10) + "k";
+
+// Build a realistic itemized ledger for a year from its category totals.
+// By construction the line items sum to the category totals, so the settle-up is honest.
+function ledgerFor(y){
+  const r = RAW[y], E = [];
+  const add = (mo,day,what,amt,payer,cat,shared)=>E.push({date:`${y}-${String(mo).padStart(2,"0")}-${String(day).padStart(2,"0")}`,what,amt:Math.round(amt),payer,cat,shared});
+  // Property tax — Dartmouth bills quarterly; John's household handles the tax bill
+  add(2,1,  "Property tax — Town of Dartmouth (H1)", r.tax/2, "john","Property tax",true);
+  add(8,1,  "Property tax — Town of Dartmouth (H2)", r.tax/2, "polly","Property tax",true);
+  // Insurance — split across two policies, two households
+  add(2,15, "Homeowners policy renewal", r.ins*0.55, "polly","Insurance",true);
+  add(2,15, "Flood + wind (coastal) renewal", r.ins*0.45, "john","Insurance",true);
+  // Association
+  add(3,10, "Mishaum Point Assoc. — annual assessment", r.assoc, "john","Association",true);
+  // Maintenance broken into typical jobs
+  const land = Math.round(r.maint*0.42), svc = Math.round(r.maint*0.16), septic = 540;
+  const repairs = r.maint - land - svc - septic;
+  add(5,3,  "Landscaping & grounds (season)", land, "polly","Maintenance",true);
+  add(4,20, "Boiler / systems service + chimney sweep", svc, "john","Maintenance",true);
+  add(6,18, "Septic pump-out", septic, "polly","Maintenance",true);
+  add(9,22, "Repairs — plumbing, screens, odds & ends", repairs, "polly","Maintenance",true);
+  // Utilities: electric shared; propane counted personal (used on a household's own week)
+  add(7,9,  "Electric — summer (well pump + AC)", r.util*0.62, "john","Utilities",true);
+  add(7,2,  "Propane refill — our stay", r.util*0.38, "polly","Utilities",false);
+  // Capital — drawn from the reserve fund (both households already funded it 50/50),
+  // so it does NOT enter the who-owes-whom settle-up.
+  r.cap.forEach((c,i)=>{
+    const amt = c.partial ? Math.round(c.a*c.partial) : c.a;
+    add(6,1, c.n + (c.partial?" (deposit)":""), amt, i%2? "polly":"john","Capital",true);
+  });
+  return E.sort((a,b)=>b.date.localeCompare(a.date));
+}
+
+function computeYear(y){
+  const r = RAW[y];
+  const operating = r.tax + r.ins + r.util + r.assoc + r.maint;
+  const capTotal = r.cap.reduce((s,c)=> s + (c.partial?Math.round(c.a*c.partial):c.a), 0);
+  const allIn = operating + capTotal;
+  // reserve trajectory
+  let bal = RESERVE_START;
+  for(const yy of YEARS){
+    if(yy>y) break;
+    const rr = RAW[yy];
+    const cap = rr.cap.reduce((s,c)=> s + (c.partial?Math.round(c.a*c.partial):c.a),0);
+    bal += CONTRIB_EACH*2 - cap;
+    if(yy===y) break;
+  }
+  const capThis = capTotal;
+  // settle up from ledger (shared only)
+  const L = ledgerFor(y);
+  let paidJohn=0, paidPolly=0, personalJohn=0, personalPolly=0;
+  for(const e of L){
+    if(e.cat==="Capital") continue; // reserve-funded, already 50/50 — not part of settle-up
+    if(e.shared){ if(e.payer==="john") paidJohn+=e.amt; else paidPolly+=e.amt; }
+    else { if(e.payer==="john") personalJohn+=e.amt; else personalPolly+=e.amt; }
+  }
+  const diff = paidJohn - paidPolly;
+  const owe = Math.abs(diff)/2;
+  const ower = diff>0 ? "polly" : "john";
+  const even = Math.abs(diff) < 1;
+  // pot
+  const potJohn = r.bnJohn*RATE, potPolly = r.bnPolly*RATE;
+  return {y,operating,capTotal,allIn,bal,paidJohn,paidPolly,personalJohn,personalPolly,owe,ower,even,
+    potJohn,potPolly,bnJohn:r.bnJohn,bnPolly:r.bnPolly,cats:{
+      "Property tax":{a:r.tax,c:"#3d6b5c",d:"Town of Dartmouth, quarterly"},
+      "Insurance":{a:r.ins,c:"#5b8a7a",d:"homeowners + flood/wind (coastal)"},
+      "Maintenance & repairs":{a:r.maint,c:"#7ea895",d:"grounds, systems, old-house upkeep"},
+      "Utilities":{a:r.util,c:"#a7c3b6",d:"electric, heating, water, internet"},
+      "Association":{a:r.assoc,c:"#c8d8ce",d:"Mishaum Point roads, water & beach"},
+    }, cap:r.cap};
+}
+
+let current = 2026;
+
+function render(y){
+  current = y;
+  const D = computeYear(y);
+  const jo=FAM.john, po=FAM.polly;
+
+  // year pills
+  document.getElementById("years").innerHTML = YEARS.map(yy=>
+    `<button class="${yy===y?'on':''}" onclick="render(${yy})">${yy}</button>`).join("");
+
+  // snapshot
+  const runwayYears = (D.bal/ (CONTRIB_EACH*2)); // crude: years of pure contribution buffer
+  document.getElementById("snap").className = "snap";
+  document.getElementById("snap").innerHTML = `
+    <div class="caption">The house in ${y}</div>
+    <div class="property">Mishaum Point · South Dartmouth, MA</div>
+    <div class="snapgrid">
+      <div class="stat"><div class="k">All-in cost this year</div><div class="v">${fmt(D.allIn)}</div>
+        <div class="s">${fmt(D.operating)} to run + ${fmt(D.capTotal)} capital</div></div>
+      <div class="stat"><div class="k">Per household share</div><div class="v">${fmt(D.allIn/2)}</div>
+        <div class="s">split 50/50 by ownership</div></div>
+      <div class="stat"><div class="k">Reserve fund</div><div class="v">${fmt(D.bal)}</div>
+        <div class="s">${D.bal < 25000 ? "running low — worth a top-up" : "for the next big job"}</div></div>
+    </div>
+    <div class="settlebar ${D.even?'even':''}">
+      <div class="msg">${D.even
+        ? "Shared costs are square this year — nothing owed either way."
+        : `To even shared costs 50/50, <b>${FAM[D.ower].label}</b> owes <b>${FAM[D.ower==='john'?'polly':'john'].label}</b> <b>${fmt(D.owe)}</b>.`}</div>
+      <button class="pillbtn" onclick="copySummary()">Copy year summary</button>
+    </div>`;
+
+  // operating budget
+  document.getElementById("opYearNote").textContent = `· ${y}`;
+  const cats = Object.entries(D.cats);
+  const opTot = D.operating;
+  document.getElementById("stackbar").innerHTML = cats.map(([n,c])=>
+    `<span style="width:${(c.a/opTot*100).toFixed(1)}%;background:${c.c}" title="${n} ${fmt(c.a)}"></span>`).join("");
+  document.getElementById("catrows").innerHTML = cats.map(([n,c])=>{
+    const pct = c.a/opTot*100;
+    return `<div class="catrow">
+      <div class="catdot" style="background:${c.c}"></div>
+      <div><div class="catname">${n}<div class="desc">${c.d}</div></div>
+        <div class="catmeter"><i style="width:${pct}%;background:${c.c}"></i></div></div>
+      <div class="catval"><div class="amt">${fmt(c.a)}</div><div class="pct">${pct.toFixed(0)}%</div></div>
+    </div>`;
+  }).join("");
+  document.getElementById("capital").innerHTML =
+    `<div class="ct">Capital projects this year — funded from the reserve</div>` +
+    D.cap.map(c=>{
+      const amt = c.partial?Math.round(c.a*c.partial):c.a;
+      return `<div class="caprow"><span>${c.n}</span><span>${c.partial
+        ? `<span class="prog">${Math.round(c.partial*100)}% billed</span> · ${fmt(amt)} of ${fmt(c.a)}`
+        : `<span class="amt">${fmt(amt)}</span>`}</span></div>`;
+    }).join("");
+
+  // reserve
+  document.querySelectorAll(".ry, .ledy").forEach(el=>el.textContent=y);
+  document.querySelectorAll("#resDetail .ry, .sec .ry").forEach(el=>el.textContent=y);
+  document.getElementById("resBal").textContent = fmt(D.bal);
+  const capThisYr = D.capTotal;
+  document.getElementById("resDetail").innerHTML = `
+    <div class="reslabel">Movement in ${y}</div>
+    <div class="resline add"><span>${jo.label} paid in</span><span>+${fmt(CONTRIB_EACH)}</span></div>
+    <div class="resline add"><span>${po.label} paid in</span><span>+${fmt(CONTRIB_EACH)}</span></div>
+    <div class="resline draw"><span>Drawn for ${D.cap.map(c=>c.n.replace(" (in progress)","")).join(", ")}</span><span>−${fmt(capThisYr)}</span></div>
+    <div class="resline" style="border-top:1px solid var(--line);margin-top:6px;padding-top:9px;font-weight:600">
+      <span>Net change</span><span>${(CONTRIB_EACH*2-capThisYr)>=0?"+":"−"}${fmt(Math.abs(CONTRIB_EACH*2-capThisYr))}</span></div>`;
+  document.getElementById("resSpark").innerHTML = reserveSpark(y);
+  const rw = document.getElementById("runway");
+  if(D.bal < 25000){
+    rw.className="runway warn";
+    rw.innerHTML = `At ${fmt(CONTRIB_EACH*2)}/yr in and roofs/docks running $30–46k, the reserve is thin. Raising each household to ~${fmt(12000)}/yr rebuilds a one-big-job cushion.`;
+  } else {
+    rw.className="runway";
+    rw.innerHTML = `Healthy — covers roughly ${runwayYears.toFixed(1)} years of typical upkeep, or one major project outright.`;
+  }
+
+  // settle up
+  document.getElementById("suYearNote").textContent = `· ${y}`;
+  document.getElementById("hh").innerHTML = [["john",D.paidJohn,D.personalJohn],["polly",D.paidPolly,D.personalPolly]].map(([k,paid,pers])=>{
+    const f=FAM[k];
+    return `<div class="hhcard">
+      <div class="hhname"><span class="chip" style="background:${f.color}"></span>${f.label}<span class="tag">${f.tag}</span></div>
+      <div class="hhpaid" style="color:${f.color}">${fmt(paid)}</div>
+      <div class="hhsub">fronted in shared bills${pers?` · plus ${fmt(pers)} personal (not split)`:""}</div>
+    </div>`;
+  }).join("");
+  document.getElementById("settleInline").className="settlebar even";
+  document.getElementById("settleInline").innerHTML = `
+    <div class="msg" style="color:var(--ink)">${D.even
+      ? "All square — nothing owed either way."
+      : `<b style="color:var(--ink)">${FAM[D.ower].label}</b> owes <b style="color:var(--ink)">${FAM[D.ower==='john'?'polly':'john'].label}</b> <b style="color:var(--ink)">${fmt(D.owe)}</b> to close ${y}.`}</div>
+    <button class="pillbtn" style="background:var(--card);color:var(--ink);border-color:var(--line)" onclick="copySummary()">Copy summary</button>`;
+
+  // usage pot
+  const potTot = D.potJohn+D.potPolly, bnTot=D.bnJohn+D.bnPolly;
+  document.getElementById("potgrid").innerHTML = [["john",D.bnJohn,D.potJohn],["polly",D.bnPolly,D.potPolly]].map(([k,bn,pot])=>{
+    const f=FAM[k];
+    return `<div class="hhcard">
+      <div class="hhname"><span class="chip" style="background:${f.color}"></span>${f.label}<span class="tag">${bn} bed-nights</span></div>
+      <div class="hhpaid" style="color:${f.color}">${fmt(pot)}</div>
+      <div class="hhsub">${bn} bed-nights × $${RATE}</div>
+      <div class="potmeter"><i style="width:${bn/Math.max(D.bnJohn,D.bnPolly)*100}%;background:${f.color}"></i></div>
+    </div>`;
+  }).join("");
+  document.getElementById("pottot").innerHTML =
+    `<span style="font-size:12px;color:var(--muted)">${bnTot} bed-nights this year × $${RATE}</span><span class="big">${fmt(potTot)} into the pot</span>`;
+
+  // history chart + projects
+  document.getElementById("historyChart").innerHTML = historyChart(y);
+  document.getElementById("projects").innerHTML = YEARS.slice().reverse().map(yy=>{
+    const r=RAW[yy];
+    return r.cap.map(c=>{
+      const amt=c.partial?Math.round(c.a*c.partial):c.a;
+      return `<div class="projrow ${yy===y?'':''}" style="${yy===y?'background:#fbfbf8;border-radius:6px':''}">
+        <span class="yr">${yy}</span><span class="nm">${c.n}</span><span class="amt">${fmt(amt)}</span></div>`;
+    }).join("");
+  }).join("");
+
+  // ledger
+  document.getElementById("ledYearNote").textContent = `· ${y}`;
+  document.getElementById("ledger").innerHTML = ledgerFor(y).map(e=>{
+    const f=FAM[e.payer];
+    return `<div class="stay">
+      <div class="swipe" style="background:${f.color}"></div>
+      <div class="when">${fmt(e.amt)}<div class="d">${prettyDate(e.date)}</div></div>
+      <div class="what">${e.what}<div class="cat">${e.cat}${e.shared?"":`<span class="tagpill personal">personal</span>`}</div></div>
+      <div class="who">${f.label}</div>
+    </div>`;
+  }).join("");
+}
+
+function reserveSpark(uptoYear){
+  const w=260,h=46,pad=4;
+  let bal=RESERVE_START; const pts=[];
+  for(const yy of YEARS){
+    const rr=RAW[yy];
+    const cap=rr.cap.reduce((s,c)=>s+(c.partial?Math.round(c.a*c.partial):c.a),0);
+    bal += CONTRIB_EACH*2 - cap;
+    pts.push({y:yy,bal});
+  }
+  const max=Math.max(...pts.map(p=>p.bal)), min=Math.min(0,...pts.map(p=>p.bal));
+  const x=i=> pad + i*(w-2*pad)/(pts.length-1);
+  const yv=v=> h-pad - (v-min)/(max-min)*(h-2*pad);
+  const line=pts.map((p,i)=>`${i?'L':'M'}${x(i).toFixed(1)},${yv(p.bal).toFixed(1)}`).join(" ");
+  const dots=pts.map((p,i)=>`<circle cx="${x(i).toFixed(1)}" cy="${yv(p.bal).toFixed(1)}" r="${p.y===uptoYear?3:2}" fill="${p.y===uptoYear?'#1e2a2b':'#9aa39d'}"/>`).join("");
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><path d="${line}" fill="none" stroke="#7ea895" stroke-width="1.6"/>${dots}</svg>
+    <div style="font-size:10.5px;color:var(--muted);font-family:var(--mono);margin-top:2px">reserve balance ${YEARS[0]}–${YEARS[YEARS.length-1]}</div>`;
+}
+
+function historyChart(sel){
+  const bw=760, bh=240, padL=44, padB=26, padT=10, padR=8;
+  const data=YEARS.map(y=>{const D=computeYear(y);return {y,op:D.operating,cap:D.capTotal,all:D.allIn};});
+  const max=Math.max(...data.map(d=>d.all))*1.1;
+  const plotH=bh-padB-padT, plotW=bw-padL-padR;
+  const bwEach=plotW/data.length, barW=bwEach*0.56;
+  const yScale=v=> v/max*plotH;
+  // gridlines
+  let grid="";
+  for(let g=0; g<=4; g++){
+    const val=max*g/4, yy=padT+plotH-yScale(val);
+    grid+=`<line x1="${padL}" y1="${yy}" x2="${bw-padR}" y2="${yy}" stroke="#e5e8e2" stroke-width="1"/>
+      <text x="${padL-6}" y="${yy+3}" text-anchor="end" font-size="9.5" fill="#9aa39d" font-family="ui-monospace,monospace">${'$'+Math.round(val/1000)+'k'}</text>`;
+  }
+  const bars=data.map((d,i)=>{
+    const cx=padL + i*bwEach + bwEach/2;
+    const x=cx-barW/2;
+    const opH=yScale(d.op), capH=yScale(d.cap);
+    const opY=padT+plotH-opH, capY=opY-capH;
+    const hl = d.y===sel ? ' stroke="#1e2a2b" stroke-width="1.5"' : '';
+    return `<g>
+      <rect x="${x}" y="${opY}" width="${barW}" height="${opH}" fill="#2f5647" rx="2"${hl}/>
+      <rect x="${x}" y="${capY}" width="${barW}" height="${capH}" fill="#b0762a" rx="2"${hl}/>
+      <text x="${cx}" y="${bh-padB+15}" text-anchor="middle" font-size="11" fill="${d.y===sel?'#1e2a2b':'#6c7772'}" font-family="ui-monospace,monospace" font-weight="${d.y===sel?'700':'400'}">${d.y}</text>
+      <text x="${cx}" y="${capY-5}" text-anchor="middle" font-size="9.5" fill="#6c7772" font-family="ui-monospace,monospace">${'$'+Math.round(d.all/1000)+'k'}</text>
+    </g>`;
+  }).join("");
+  return `<svg width="100%" viewBox="0 0 ${bw} ${bh}" style="min-width:640px">${grid}${bars}</svg>`;
+}
+
+const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function prettyDate(iso){const[y,m,d]=iso.split("-").map(Number);return `${MONTHS[m-1]} ${d}, ${y}`;}
+
+function copySummary(){
+  const D=computeYear(current);
+  const lines=[
+    `Mishaum Point — house accounts, ${current}`,
+    ``,
+    `All-in cost:   ${fmt(D.allIn)}  (${fmt(D.operating)} operating + ${fmt(D.capTotal)} capital)`,
+    `Per household: ${fmt(D.allIn/2)}`,
+    `Reserve fund:  ${fmt(D.bal)} at year end`,
+    ``,
+    `Shared costs fronted — ${FAM.john.label}: ${fmt(D.paidJohn)} · ${FAM.polly.label}: ${fmt(D.paidPolly)}`,
+    D.even ? `Square — nothing owed either way.`
+      : `${FAM[D.ower].label} owes ${FAM[D.ower==='john'?'polly':'john'].label} ${fmt(D.owe)} to even 50/50.`,
+  ];
+  const t=lines.join("\n");
+  if(navigator.clipboard?.writeText) navigator.clipboard.writeText(t).then(()=>flash()).catch(()=>flash());
+  else flash();
+}
+let flashT;
+function flash(){
+  clearTimeout(flashT);
+  const b=document.createElement("div");
+  b.textContent="Summary copied";
+  b.style.cssText="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1e2a2b;color:#fff;padding:9px 16px;border-radius:8px;font-size:13px;z-index:99;box-shadow:0 6px 20px rgba(0,0,0,.25)";
+  document.body.appendChild(b);
+  flashT=setTimeout(()=>b.remove(),1800);
+}
+
+render(2026);
+</script>
+</body>
+</html>
