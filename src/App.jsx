@@ -219,9 +219,8 @@ const CSS = `
 .mp .hero h1{color:#fff;font-size:30px;text-shadow:0 1px 12px rgba(15,25,22,.5)}
 .mp .burgee{width:46px;height:auto;flex:none;filter:drop-shadow(0 2px 6px rgba(10,18,16,.5))}
 .mp .hero .sub.light{text-shadow:0 1px 8px rgba(15,25,22,.55)}
-.mp .heroadd{position:absolute;top:14px;right:14px;background:rgba(255,255,255,.92);color:var(--ink);
+.mp .heroadd{position:absolute;top:14px;right:14px;background:rgba(255,255,255,.92);color:var(--ink);backdrop-filter:blur(3px)}
 .mp .egg{position:absolute;bottom:10px;right:14px;color:#fff;font-size:11px;letter-spacing:.14em;text-transform:uppercase;opacity:.38;text-shadow:0 1px 6px rgba(15,25,22,.6);pointer-events:none;user-select:none}
-  backdrop-filter:blur(3px)}
 .mp .heroadd:hover{background:#fff}
 @media(max-width:560px){
   .mp .hero{min-height:150px;padding:13px 14px;background-position:center 42%}
